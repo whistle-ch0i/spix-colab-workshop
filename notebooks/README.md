@@ -17,7 +17,7 @@ KOGO 공간전사체 실습에서 사용할 Colab 파일입니다.
 일반 분석은 2 um ROI를 8 um pseudobulk로 만든 뒤 진행합니다.
 
 - SVG: HVG와 Squidpy Moran's I 비교
-- Spatial domain: expression-only baseline, BANKSY-style neighborhood feature,
+- Spatial domain: expression-only baseline, Squidpy spatial graph, BANKSY,
   SpaGCN 비교
 - Cell-cell interaction: Squidpy neighborhood enrichment, Squidpy `ligrec`
 

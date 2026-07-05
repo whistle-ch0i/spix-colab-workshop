@@ -39,7 +39,7 @@ Dataset details:
 Local fallback executor result, 2026-07-06:
 
 - Code cells: 30/30 passed.
-- Total elapsed: 200.02 seconds after local dependencies and data were present.
+- Total elapsed: 203.87 seconds after local dependencies and data were present.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use; no custom helper functions are defined inside the
   notebook code cells.
@@ -50,23 +50,26 @@ Local fallback executor result, 2026-07-06:
     `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`
 - Standard sections:
   - 8 um pseudobulk shape: `31535 x 2515`
-  - SpaGCN comparison panel: `3500 x 2515`
+  - spatial domain comparison panel: `3500 x 2515`
 - SVG:
   - Squidpy Moran's I over all 2,515 workshop genes on 8 um pseudobulk.
   - Top 100 HVG/SVG overlap: 3 genes.
   - Example top SVG genes: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `JCHAIN`.
 - Spatial domain:
   - expression-only Leiden baseline,
-  - BANKSY-style neighborhood-augmented feature clustering,
+  - Squidpy spatial graph clustering,
+  - BANKSY through `pyBANKSY`, using 800 HVGs,
   - SpaGCN.
   - Pairwise ARI in the validation run:
-    expression vs BANKSY-style 0.680, expression vs SpaGCN 0.570,
-    BANKSY-style vs SpaGCN 0.737.
+    expression vs Squidpy spatial graph 0.047, expression vs BANKSY 0.381,
+    expression vs SpaGCN 0.857, Squidpy spatial graph vs BANKSY 0.114,
+    Squidpy spatial graph vs SpaGCN 0.054, BANKSY vs SpaGCN 0.372.
 - Cell-cell interaction:
-  - Squidpy neighborhood enrichment on BANKSY-style domains, 50 permutations.
+  - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
     `threshold=0.0`.
-  - Top CCI examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`.
+  - Top CCI examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`,
+    and `LGALS3-ITGB1`.
 - SPIX section: full `500000 x 2515` 2 um ROI, following the VisiumHD P2
   manuscript/reproduction path:
   - PCA/log-normalized embedding with 30 dimensions and up to 2,000 features.
@@ -97,11 +100,12 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 12
   - `r500`: 5
 - Slowest stages:
-  - 8 um preprocessing with Scanpy/Squidpy: 47.67 seconds
-  - SPIX multiscale segmentation: 42.64 seconds
-  - SPIX equalization sweep: 30.77 seconds
-  - SPIX smoothing sweep: 21.13 seconds
-  - SPIX multiscale Moran/SVG: 17.64 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 37.43 seconds
+  - SPIX multiscale segmentation: 40.08 seconds
+  - SPIX equalization sweep: 30.76 seconds
+  - SPIX smoothing sweep: 24.76 seconds
+  - SPIX multiscale Moran/SVG: 12.17 seconds
+  - BANKSY/Squidpy/SpaGCN spatial domain comparison: 8.05 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

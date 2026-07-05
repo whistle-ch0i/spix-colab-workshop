@@ -198,6 +198,7 @@ def setup_cells(
                 "scanpy": "scanpy",
                 "squidpy": "squidpy",
                 "SpaGCN": "SpaGCN",
+                "banksy": "pybanksy",
                 "anndata": "anndata",
             }
             missing = [pip_name for module, pip_name in needed.items() if importlib.util.find_spec(module) is None]
@@ -268,6 +269,8 @@ def setup_cells(
             import scipy.sparse as sp
             import squidpy as sq
             import SpaGCN
+            from banksy.initialize_banksy import initialize_banksy
+            from banksy.run_banksy import run_banksy_multiparam
             from IPython.display import display
             from sklearn.metrics import adjusted_rand_score
             import SPIX
@@ -277,6 +280,7 @@ def setup_cells(
             print(f"[timing] {stage}: {seconds} sec")
             print("Scanpy:", sc.__version__)
             print("Squidpy:", sq.__version__)
+            print("BANKSY:", importlib.util.find_spec("banksy").origin)
             print("SPIX:", SPIX.__file__)
             """
         ),
@@ -802,11 +806,12 @@ def domain_cells() -> list:
 
             여기서 목표는 단순히 Leiden이나 k-means를 실행하는 것이 아닙니다. 공간
             transcriptomics에서 domain을 찾는 방법은 주변 위치의 정보를 같이 씁니다.
-            아래에서는 세 가지 결과를 나란히 봅니다.
+            아래에서는 같은 8 um panel에서 baseline과 세 가지 spatial tool을 비교합니다.
 
-            - expression-only Leiden: 비교용 baseline
-            - BANKSY-style neighborhood feature: 주변 bin의 발현 정보를 feature에 추가
-            - SpaGCN: spatial graph를 쓰는 spatial domain method
+            - Expression-only Leiden: 공간 정보를 쓰지 않는 비교 기준
+            - Squidpy spatial graph: 좌표 기반 인접 graph에서 domain을 나눈 결과
+            - BANKSY: 주변 발현과 azimuthal filter를 feature에 포함한 spatial domain
+            - SpaGCN: spatial graph convolution 기반 domain
             """
         ),
         code(
@@ -825,6 +830,7 @@ def domain_cells() -> list:
             domain_adata = analysis_adata[domain_idx].copy()
             domain_coords = np.asarray(domain_adata.obsm["spatial"], dtype=float)
             DOMAIN_N_PCS = min(20, domain_adata.obsm["X_pca"].shape[1])
+            BANKSY_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BANKSY_N_GENES", "800"))
 
             sc.pp.neighbors(
                 domain_adata,
@@ -849,37 +855,66 @@ def domain_cells() -> list:
                 spatial_key="spatial",
                 coord_type="generic",
                 n_neighs=6,
-                key_added="spatial",
-            )
-            spatial_graph = domain_adata.obsp["spatial_connectivities"].tocsr()
-            row_sum = np.asarray(spatial_graph.sum(axis=1)).ravel()
-            row_sum[row_sum == 0] = 1
-            spatial_average = sp.diags(1 / row_sum) @ spatial_graph
-            neighbor_pca = spatial_average @ domain_adata.obsm["X_pca"][:, :DOMAIN_N_PCS]
-
-            banksy_weight = float(os.environ.get("SPIX_WORKSHOP_BANKSY_STYLE_WEIGHT", "0.8"))
-            domain_adata.obsm["X_banksy_style"] = np.hstack([
-                domain_adata.obsm["X_pca"][:, :DOMAIN_N_PCS],
-                banksy_weight * neighbor_pca,
-            ])
-
-            sc.pp.neighbors(
-                domain_adata,
-                n_neighbors=15,
-                use_rep="X_banksy_style",
-                key_added="banksy_style_graph",
-                random_state=7,
+                key_added="squidpy_spatial",
             )
             sc.tl.leiden(
                 domain_adata,
+                adjacency=domain_adata.obsp["squidpy_spatial_connectivities"],
                 resolution=0.35,
-                neighbors_key="banksy_style_graph",
-                key_added="banksy_domain",
+                key_added="squidpy_spatial_domain",
                 flavor="igraph",
                 n_iterations=2,
                 directed=False,
                 random_state=7,
             )
+
+            banksy_gene_table = domain_adata.var[domain_adata.var["highly_variable"]].copy()
+            banksy_gene_table = banksy_gene_table.sort_values("dispersions_norm", ascending=False)
+            banksy_genes = banksy_gene_table.head(min(BANKSY_N_GENES, len(banksy_gene_table))).index.tolist()
+            banksy_adata = domain_adata[:, banksy_genes].copy()
+            if sp.issparse(banksy_adata.X):
+                gene_mean = np.asarray(banksy_adata.X.mean(axis=0)).ravel()
+                gene_mean2 = np.asarray(banksy_adata.X.power(2).mean(axis=0)).ravel()
+                keep_gene = (gene_mean2 - gene_mean**2) > 1e-8
+            else:
+                keep_gene = np.var(np.asarray(banksy_adata.X), axis=0) > 1e-8
+            banksy_adata = banksy_adata[:, keep_gene].copy()
+            banksy_adata.obs["x"] = banksy_adata.obsm["spatial"][:, 0]
+            banksy_adata.obs["y"] = banksy_adata.obsm["spatial"][:, 1]
+
+            banksy_dict = initialize_banksy(
+                banksy_adata,
+                coord_keys=("x", "y", "spatial"),
+                num_neighbours=15,
+                nbr_weight_decay="scaled_gaussian",
+                max_m=1,
+                plt_edge_hist=False,
+                plt_nbr_weights=False,
+                plt_agf_angles=False,
+                plt_theta=False,
+            )
+            banksy_results = run_banksy_multiparam(
+                banksy_adata,
+                banksy_dict,
+                lambda_list=[0.8],
+                resolutions=[0.5],
+                color_list=["tab:blue"] * 256,
+                max_m=1,
+                filepath=str(OUTPUT_DIR / "banksy"),
+                key=("x", "y", "spatial"),
+                annotation_key=None,
+                savefig=False,
+                add_nonspatial=False,
+                pca_dims=[DOMAIN_N_PCS],
+                partition_seed=7,
+            )
+            banksy_label_obj = banksy_results.iloc[0]["labels"]
+            if hasattr(banksy_label_obj, "dense"):
+                banksy_labels = np.asarray(banksy_label_obj.dense)
+            else:
+                banksy_labels = np.asarray(banksy_label_obj)
+            domain_adata.obs["banksy_domain"] = pd.Categorical(banksy_labels.astype(str))
+            plt.close("all")
 
             spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
             if sp.issparse(spagcn_adata.X):
@@ -914,7 +949,8 @@ def domain_cells() -> list:
 
             domain_methods = {
                 "expression_domain": "Expression baseline",
-                "banksy_domain": "BANKSY-style",
+                "squidpy_spatial_domain": "Squidpy spatial graph",
+                "banksy_domain": "BANKSY",
                 "spagcn_domain": "SpaGCN",
             }
 
@@ -946,11 +982,14 @@ def domain_cells() -> list:
                         ),
                     })
             domain_ari_table = pd.DataFrame(ari_rows)
+            domain_count_table.to_csv(OUTPUT_DIR / "spatial_domain_counts.csv", index=False)
+            domain_ari_table.to_csv(OUTPUT_DIR / "spatial_domain_ari.csv", index=False)
 
             seconds = round(time.perf_counter() - start, 2)
             STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
             print(f"[timing] {stage}: {seconds} sec")
             print(f"domain panel: {domain_adata.n_obs:,} 8 um bins")
+            print(f"BANKSY genes: {banksy_adata.n_vars:,}")
             print(f"SpaGCN l: {spagcn_l:.4f}")
             display(domain_count_table)
             display(domain_ari_table)
@@ -960,8 +999,8 @@ def domain_cells() -> list:
             """
             ## 5-1. Domain map 비교
 
-            같은 8 um panel에서 세 방법의 결과를 나란히 봅니다. 좋은 결과는 cluster
-            개수가 많다는 뜻이 아니라, 조직 구조와 marker 해석이 같이 맞는 결과입니다.
+            같은 8 um panel에서 결과를 나란히 봅니다. 좋은 결과는 cluster 개수가
+            많다는 뜻이 아니라, 조직 구조와 marker 해석이 같이 맞는 결과입니다.
             """
         ),
         code(
@@ -969,7 +1008,7 @@ def domain_cells() -> list:
             stage = "plot_spatial_domain_maps"
             start = time.perf_counter()
 
-            fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), constrained_layout=True)
+            fig, axes = plt.subplots(1, len(domain_methods), figsize=(4.0 * len(domain_methods), 3.8), constrained_layout=True)
             for ax, (key, label) in zip(axes, domain_methods.items()):
                 codes = domain_adata.obs[key].astype("category").cat.codes.to_numpy()
                 ax.scatter(
@@ -996,8 +1035,8 @@ def domain_cells() -> list:
             """
             ## 5-2. Domain marker
 
-            이후 CCI에서는 BANKSY-style domain을 사용합니다. 여기서는 각 domain의
-            marker를 간단히 확인합니다.
+            이후 CCI에서는 BANKSY domain을 사용합니다. 여기서는 각 domain의 marker를
+            먼저 확인합니다.
             """
         ),
         code(
@@ -1681,10 +1720,13 @@ def final_cells() -> list:
                 "data_shape_2um": [int(adata_2um.n_obs), int(adata_2um.n_vars)],
                 "data_shape_8um": [int(adata_8um.n_obs), int(adata_8um.n_vars)],
                 "spatial_domain_panel_shape": [int(domain_adata.n_obs), int(domain_adata.n_vars)],
+                "spatial_domain_methods": list(domain_methods.values()),
                 "spix_shape": [int(spix_adata.n_obs), int(spix_adata.n_vars)],
                 "stage_times": STAGE_TIMES,
                 "outputs": {
                     "output_dir": str(OUTPUT_DIR),
+                    "spatial_domain_counts": str(OUTPUT_DIR / "spatial_domain_counts.csv"),
+                    "spatial_domain_ari": str(OUTPUT_DIR / "spatial_domain_ari.csv"),
                     "smoothing_selection": str(OUTPUT_DIR / "spix_smoothing_selection.json"),
                     "equalization_selection": str(OUTPUT_DIR / "spix_equalization_selection.json"),
                     "segments_index": str(SEGMENT_DIR / "segments_index.csv"),
