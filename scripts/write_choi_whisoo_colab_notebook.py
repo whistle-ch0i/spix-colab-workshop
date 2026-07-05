@@ -257,8 +257,60 @@ def build_notebook(data_url: str, data_sha256: str):
                     )
                     print("Patched SPIX visualization imports for Colab:", init_path)
 
+                def patch_spix_analysis_imports_for_colab():
+                    if not IN_COLAB:
+                        return
+                    spec = importlib.util.find_spec("SPIX")
+                    if spec is None or spec.origin is None:
+                        return
+                    init_path = Path(spec.origin).parent / "analysis" / "__init__.py"
+                    if not init_path.exists():
+                        return
+                    text = init_path.read_text()
+                    if "workshop-safe optional analysis imports" in text:
+                        return
+                    if "from .cluster_comparison import *" not in text:
+                        return
+                    init_path.write_text(
+                        "\\n".join([
+                            "import os",
+                            "",
+                            "os.environ.setdefault('NUMBA_CACHE_DIR', '/tmp/numba_spix')",
+                            "",
+                            "from .calculate_original_moranI import *",
+                            "from .enrichment_analysis import *",
+                            "from .perform_pseudo_bulk_analysis import *",
+                            "from .gene_expression_embedding import *",
+                            "from .gene_expression_gallery import *",
+                            "from .multiscale_moran_ranks import *",
+                            "from .segment_svg_enrichment import *",
+                            "from .celltype_enrichment import *",
+                            "from .svg_specificity import *",
+                            "from .svg_gain_explanation import *",
+                            "from .moran_geary_comparison import *",
+                            "from .geary_supplementary_figure import *",
+                            "",
+                            "# workshop-safe optional analysis imports",
+                            "for _module in (",
+                            "    'cluster_comparison',",
+                            "    'scale_biology',",
+                            "    'scale_hotspot_biology',",
+                            "    'figure4_hotspot_workflow',",
+                            "    'paired_multiscale',",
+                            "    'manuscript_scale_svg_figures',",
+                            "):",
+                            "    try:",
+                            "        exec(f'from .{_module} import *')",
+                            "    except ModuleNotFoundError:",
+                            "        pass",
+                            "",
+                        ])
+                    )
+                    print("Patched SPIX analysis imports for Colab:", init_path)
+
                 ensure_spix_importable()
                 patch_spix_visualization_imports_for_colab()
+                patch_spix_analysis_imports_for_colab()
 
                 import hashlib
                 import urllib.request
