@@ -10,9 +10,9 @@ Environment:
   `MKL_NUM_THREADS=2`, `NUMEXPR_NUM_THREADS=2`
 - Notebook executor: `scripts/execute_notebook_code_cells.py`
 
-## Current Korean Lecture Defaults
+## Current Practical Defaults
 
-The current workshop default is one Korean lecture notebook:
+The current workshop default is one practical notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 

@@ -31,7 +31,7 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 3. Select `Runtime > Change runtime type > Hardware accelerator: None`.
 4. Run all cells from the top.
 5. The final cell must print `Validation passed` and write a JSON timing
-   report. The Korean workshop notebook auto-downloads its timing report when
+   report. The practical notebook auto-downloads its timing report when
    running in Colab.
 
 ## Pass Criteria
@@ -39,7 +39,7 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 - `running_in_colab` is `true` in the first-cell runtime snapshot.
 - Notebook runs on CPU runtime with no GPU requirement.
 - Data SHA-256 check passes.
-- The Korean workshop notebook completes all of its stages:
+- The practical notebook completes all of its stages:
   - standard-tool preprocessing with Scanpy and Squidpy,
   - SVG with Squidpy Moran's I,
   - spatial clustering with Scanpy Leiden and marker ranking,
@@ -52,7 +52,7 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 
 ## Current Default Preflight Result
 
-Observed locally on 2026-07-06 with the Korean combined notebook:
+Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Data:
   - shape: `500000 x 2515`

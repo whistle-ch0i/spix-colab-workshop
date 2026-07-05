@@ -1,15 +1,16 @@
-# SPIX Colab Workshop
+# KOGO Spatial Transcriptomics Practice
 
-Colab-ready SPIX materials for a short hands-on session. The live notebook uses
-a native-resolution 2 um ROI from the public 10x Genomics Visium HD Human Colon
-Cancer dataset, so participants see data closer to the manuscript setting
-without waiting on the full 8.7M-bin slide.
+Materials for the spatial transcriptomics practical session in the 2026 KOGO
+statistical genetics workshop. The live Colab file uses a native-resolution
+2 um ROI from the public 10x Genomics Visium HD Human Colon Cancer dataset, so
+participants can work with data close to the manuscript setting without loading
+the full 8.7M-bin slide.
 
-The main Korean workshop notebook is:
+Main practical notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 
-The notebook is organized in this lecture order:
+Session flow:
 
 - SVG with Squidpy Moran's I
 - spatial clustering with Scanpy PCA-neighbors-Leiden
@@ -35,7 +36,7 @@ Source dataset:
 The source page lists this as a Visium HD Spatial Gene Expression Human Colon
 Cancer dataset analyzed with Space Ranger 4.1.0 and released under CC BY 4.0.
 
-The default Choi Whisoo workshop file is a derived 2 um subset:
+The default practical file is a derived 2 um subset:
 
 `data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
@@ -65,8 +66,7 @@ broader mini-reproduction notebook:
 
 Only needed if you want to recreate the bundled `.h5ad` files.
 
-The default 2 um Choi notebook file is recreated from a full P2 AnnData
-intermediate:
+The default 2 um practice file is recreated from a full P2 AnnData intermediate:
 
 ```bash
 CONDA_NO_PLUGINS=true \
@@ -97,8 +97,7 @@ python scripts/build_visiumhd_colon_roi_h5ad.py \
 
 ## Regenerate Notebook
 
-Regenerate the Korean workshop notebook after changing the data file or default
-URLs:
+Regenerate the practical notebook after changing the data file or default URLs:
 
 ```bash
 python3 scripts/write_korean_workshop_notebook.py

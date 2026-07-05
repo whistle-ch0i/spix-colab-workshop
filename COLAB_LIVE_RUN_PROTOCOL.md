@@ -4,7 +4,7 @@ Use this checklist for the live free-tier run.
 
 ## Open
 
-Main Korean workshop notebook:
+Main practical notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 
@@ -42,7 +42,7 @@ or an enterprise runtime.
 
 ## Current Default Local Check
 
-Observed locally on 2026-07-06 with the Korean combined notebook:
+Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
@@ -63,7 +63,7 @@ after pushing any data/notebook changes and keep the downloaded timing report.
 
 ## Earlier Passing Colab CPU Run
 
-Observed on 2026-07-06 with the earlier 16 um Choi Whisoo notebook:
+Observed on 2026-07-06 with the earlier 16 um practical notebook:
 
 - Runtime: Colab CPU session, Python `3.12.13`, 2 CPUs, 12.67 GB RAM.
 - Dataset: `10000 x 2515`.

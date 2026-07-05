@@ -176,13 +176,15 @@ def setup_cells(data_url: str, data_sha256: str) -> list:
             """
             ## 1. 패키지 불러오기
 
-            이 노트북은 앞의 세 분석을 널리 쓰이는 표준 도구로 진행합니다.
+            이번 실습에서 사용할 도구입니다. SVG, spatial clustering,
+            cell-cell interaction은 많이 쓰이는 Scanpy/Squidpy 흐름으로 먼저
+            확인하고, 마지막에 같은 Visium HD 자료를 SPIX 방식으로 다시 다룹니다.
 
             - SVG: `Squidpy`의 Moran's I
             - spatial clustering: `Scanpy`의 PCA, neighbor graph, Leiden
             - cell-cell interaction: `Squidpy`의 `ligrec`
-            - SPIX: 마지막 섹션에서 SPIX embedding, smoothing, equalization,
-              multiscale segmentation
+            - SPIX: embedding, graph smoothing, equalization,
+              `image_plot_slic` multiscale segmentation
 
             Colab에서는 GitHub에서 SPIX를 설치하고, 로컬 repo에서는 현재
             체크아웃을 우선 사용합니다.
@@ -320,10 +322,10 @@ def setup_cells(data_url: str, data_sha256: str) -> list:
             """
             ## 2. 데이터 불러오기
 
-            데이터는 10x Genomics 공개 Visium HD Human Colon Cancer P2 자료에서
-            만든 2 um native-resolution ROI입니다. 원본 P2 전체는 약 8.7M bins라
-            Colab 무료 티어 실습용으로는 너무 큽니다. 이 노트북은 같은 2 um
-            해상도를 유지한 500k ROI를 사용합니다.
+            실습 데이터는 10x Genomics 공개 Visium HD Human Colon Cancer P2에서
+            잘라낸 native 2 um ROI입니다. 원본 P2 전체는 약 8.7M bins라 Colab
+            무료 티어에서 바로 다루기 어렵습니다. 여기서는 해상도는 그대로 두고,
+            영역과 gene 수만 실습 시간에 맞게 줄인 500k ROI를 사용합니다.
             """
         ),
         code(
@@ -381,9 +383,9 @@ def setup_cells(data_url: str, data_sha256: str) -> list:
             """
             ## 3. 빠른 QC와 공통 helper
 
-            수업 목표는 QC pipeline이 아니라 분석 흐름을 이해하는 것입니다. 그래도
-            counts와 검출 gene 수가 공간적으로 완전히 깨져 있지 않은지 먼저
-            확인합니다.
+            오늘의 목적은 QC 자체가 아니라 분석 흐름을 따라가는 것입니다. 그래도
+            counts와 검출 gene 수가 공간적으로 이상하게 깨져 있으면 뒤의 결과를
+            읽기 어렵기 때문에, 최소한의 분포만 먼저 확인합니다.
             """
         ),
         code(
@@ -446,12 +448,11 @@ def standard_tool_cells() -> list:
 
             Scanpy와 Squidpy는 많이 쓰이는 표준 도구지만, 2 um bin 500k 전체에
             PCA-neighbor-Leiden-ligrec을 모두 얹으면 Colab 무료 티어에서 수업
-            시간이 불안정해집니다. 그래서 앞의 세 파트는 같은 500k ROI 안에서
-            중심부의 연속된 50k sub-ROI를 사용합니다. 랜덤 샘플이 아니라 공간적으로
-            붙어 있는 영역을 쓰기 때문에 SVG, clustering, CCI의 공간 해석이
-            유지됩니다.
+            시간이 흔들릴 수 있습니다. 그래서 표준 도구 파트는 같은 500k ROI 안의
+            중심부 50k sub-ROI로 진행합니다. 랜덤 샘플이 아니라 서로 붙어 있는
+            영역을 쓰기 때문에, 공간 패턴을 해석하는 데 필요한 구조는 남습니다.
 
-            SPIX 섹션은 마지막에 500k ROI 전체를 사용합니다.
+            SPIX 파트에서는 500k ROI 전체를 사용합니다.
             """
         ),
         code(
@@ -540,13 +541,14 @@ def svg_cells() -> list:
             """
             ## 5. SVG: 공간적으로 조직화된 gene 찾기
 
-            첫 번째 질문은 "어떤 gene이 tissue 안에서 균일하지 않고 공간 패턴을
-            만드는가?"입니다. 이 단계는 뒤의 clustering과 CCI에서 어떤 gene
-            program을 주목할지 정하는 출발점입니다.
+            먼저 공간적으로 한쪽에 모여 있거나 경계를 따라 나타나는 gene을
+            찾습니다. 이런 gene을 먼저 봐야 뒤에서 cluster를 나눴을 때 그
+            cluster가 epithelial, stromal, immune program 중 무엇과 가까운지
+            해석할 수 있습니다.
 
-            여기서는 널리 쓰이는 `Squidpy`의 Moran's I를 사용합니다. Colab 수업용
-            기본값은 marker-diverse panel입니다. 전체 2,515 genes를 모두 스캔하고
-            싶으면 `SPIX_WORKSHOP_SVG_MODE=all`로 바꿔 실행할 수 있습니다.
+            여기서는 Squidpy의 Moran's I를 사용합니다. 실습 기본값은 marker가
+            섞이도록 고른 panel이고, 전체 2,515 genes를 보고 싶으면
+            `SPIX_WORKSHOP_SVG_MODE=all`로 바꾸면 됩니다.
             """
         ),
         code(
@@ -588,9 +590,9 @@ def svg_cells() -> list:
             """
             ## 5-1. SVG 결과를 공간 위에서 확인하기
 
-            Moran's I가 높다는 것은 주변 bin끼리 비슷한 발현을 보인다는 뜻입니다.
-            표만 보고 끝내지 않고, top genes를 공간 위에 다시 그려서 실제 조직
-            패턴과 맞는지 확인합니다.
+            Moran's I가 높으면 주변 bin끼리 발현이 비슷하다는 뜻입니다. 숫자만
+            보고 넘어가지 않고, 상위 gene을 다시 tissue 위에 올려서 실제 패턴이
+            보이는지 확인합니다.
             """
         ),
         code(
@@ -613,10 +615,8 @@ def svg_cells() -> list:
         ),
         md(
             """
-            이 결과에서 얻는 것은 단순한 gene list가 아닙니다. 어떤 epithelial,
-            stromal, immune, proliferative marker가 공간적으로 분리되는지 확인하면
-            다음 단계인 spatial clustering에서 cluster가 어떤 biology를 담고 있는지
-            읽을 기준이 생깁니다.
+            여기서 중요한 것은 순위표 자체보다 공간적으로 분리되는 marker의
+            성격입니다. 이 결과를 옆에 두고 다음 clustering 결과를 해석합니다.
             """
         ),
     ]
@@ -628,13 +628,12 @@ def clustering_cells() -> list:
             """
             ## 6. Spatial clustering: 조직 domain 나누기
 
-            두 번째 질문은 "비슷한 expression state를 가진 bin들이 조직 안에서
-            어떤 domain을 이루는가?"입니다. 여기서는 `Scanpy`에서 가장 많이 쓰이는
-            흐름인 normalization, HVG, PCA, neighbor graph, Leiden clustering을
-            사용합니다.
+            다음은 expression profile이 비슷한 bin을 묶어 tissue domain을 나누는
+            단계입니다. Scanpy에서 가장 익숙한 normalization, HVG, PCA, neighbor
+            graph, Leiden clustering 순서로 진행합니다.
 
-            이 결과는 cell type annotation의 완성본이 아니라, tissue domain을
-            나누고 marker로 해석하기 위한 초안입니다.
+            여기서 얻는 cluster는 cell type annotation의 완성본이라기보다,
+            공간적으로 구분되는 영역을 marker와 함께 읽기 위한 초안입니다.
             """
         ),
         code(
@@ -664,9 +663,8 @@ def clustering_cells() -> list:
             """
             ## 6-1. Cluster marker로 domain 의미 읽기
 
-            색깔이 나뉘었다는 사실보다 중요한 것은 각 domain이 어떤 marker gene으로
-            설명되는지입니다. `scanpy.tl.rank_genes_groups`로 cluster별 marker를
-            뽑고, SVG 결과와 함께 읽습니다.
+            색깔이 나뉘는 것만으로는 해석이 끝나지 않습니다. 각 cluster에서 어떤
+            marker가 올라오는지 확인하고, 앞에서 본 SVG 결과와 같이 읽습니다.
             """
         ),
         code(
@@ -697,10 +695,9 @@ def clustering_cells() -> list:
         ),
         md(
             """
-            여기서 얻는 결과는 "조직을 몇 개의 domain으로 볼 수 있는가"와 "각
-            domain이 어떤 gene program으로 설명되는가"입니다. 이 다음 CCI에서는
-            이런 domain 또는 cluster 사이에 어떤 ligand-receptor signal이 보이는지
-            묻습니다.
+            여기까지 하면 조직을 몇 개의 domain으로 볼지, 각 domain을 어떤 gene
+            program으로 설명할지 정리할 수 있습니다. 다음 단계에서는 이 cluster들
+            사이의 ligand-receptor signal을 확인합니다.
             """
         ),
     ]
@@ -712,14 +709,14 @@ def cci_cells() -> list:
             """
             ## 7. Cell-cell interaction: cluster 사이 ligand-receptor signal
 
-            세 번째 질문은 "공간적으로 구분된 cluster 사이에서 어떤
-            ligand-receptor signal이 보이는가?"입니다. 여기서는 `Squidpy`의
-            `ligrec`을 사용합니다. `ligrec`은 CellPhoneDB-style cluster-pair
-            ligand-receptor permutation test를 수행하는 널리 쓰이는 접근입니다.
+            세 번째는 cluster 사이 ligand-receptor signal입니다. 여기서는
+            Squidpy의 `ligrec`을 사용합니다. `ligrec`은 CellPhoneDB-style
+            cluster-pair ligand-receptor permutation test를 수행하는 방식이라,
+            공간전사체 실습에서 빠르게 보여주기 좋습니다.
 
-            수업에서는 OmniPath 전체 DB를 런타임에 내려받지 않고, colorectal tissue
-            예제에서 해석하기 쉬운 ligand-receptor 후보를 작은 표로 명시합니다.
-            그래야 참가자들이 어떤 pair를 테스트하는지 직접 볼 수 있습니다.
+            실습 시간에는 OmniPath 전체 DB를 새로 내려받지 않고, colorectal tissue
+            예제에서 해석하기 쉬운 후보 pair만 작은 표로 넣어 둡니다. 어떤 pair를
+            테스트하는지 직접 확인할 수 있게 하기 위한 선택입니다.
             """
         ),
         code(
@@ -785,8 +782,8 @@ def cci_cells() -> list:
             """
             ## 7-1. 상위 LR pair를 cluster-pair matrix로 보기
 
-            결과표는 cluster-pair가 많아지면 읽기 어렵습니다. 가장 강한 pair 하나를
-            골라 sender cluster와 receiver cluster의 조합으로 펼쳐 봅니다.
+            cluster-pair가 많아지면 긴 표만으로는 보기 어렵습니다. 상위 pair 하나를
+            골라 sender cluster와 receiver cluster 조합으로 펼쳐 봅니다.
             """
         ),
         code(
@@ -817,10 +814,9 @@ def cci_cells() -> list:
         ),
         md(
             """
-            이 파트에서 얻는 것은 "특정 cluster pair에서 어떤 LR 후보가 강하게
-            보이는가"입니다. 이 결과만으로 cell-cell communication이 확정되는 것은
-            아니지만, spatial domain과 marker 결과를 연결해서 다음 검증 질문을
-            만드는 데 유용합니다.
+            이 결과만으로 cell-cell communication이 확정되는 것은 아닙니다. 다만
+            어떤 cluster 조합에서 어떤 LR 후보를 더 검토할지 정하는 데에는 충분히
+            유용합니다.
             """
         ),
     ]
@@ -832,17 +828,17 @@ def spix_cells() -> list:
             """
             ## 8. SPIX: 2 um bins를 multiscale tissue unit으로 바꾸기
 
-            마지막으로 SPIX 자체 분석을 봅니다. 앞의 세 파트는 표준 도구로
-            진행했지만, Visium HD 2 um 데이터에서는 bin 수가 너무 많아지는 순간
-            계산과 해석이 모두 어려워집니다. SPIX는 작은 bin들을 expression
-            embedding과 공간 구조를 함께 고려해 여러 물리적 scale의 tissue unit으로
-            바꾸는 단계입니다.
+            앞에서는 표준 도구로 SVG, clustering, CCI를 각각 확인했습니다. 이제
+            같은 Visium HD 2 um 자료를 SPIX 방식으로 처리합니다. 2 um bin을 그대로
+            쓰면 관측치가 너무 많아지고, scale을 바꿔 가며 해석하기도 어렵습니다.
+            SPIX는 expression embedding과 공간 구조를 함께 사용해 여러 물리적
+            scale의 tissue unit을 만듭니다.
 
-            이 섹션은 `SPIX/VisiumHD_CRC_P2/VisiumHD_CRC_P2.ipynb`와
-            `visiumhd_fig2a.py` 재현 코드의 VisiumHD P2 경로를 따릅니다.
-            계산 자원만 Colab 무료 티어에 맞춰 `N_JOBS`로 제한합니다.
+            아래 코드는 `SPIX/VisiumHD_CRC_P2/VisiumHD_CRC_P2.ipynb`와
+            `visiumhd_fig2a.py`의 VisiumHD P2 경로에 맞춘 것입니다. Colab 실습
+            때문에 데이터 크기와 `N_JOBS`만 조절했습니다.
 
-            흐름은 `embedding -> graph smoothing -> equalization -> image cache
+            실행 순서는 `embedding -> graph smoothing -> equalization -> image cache
             -> image_plot_slic multiscale segmentation -> multiscale Moran/SVG`
             입니다.
             """
@@ -1038,8 +1034,8 @@ def spix_cells() -> list:
             ## 8-1. VisiumHD Fig2A scale 확인
 
             P2 원본 노트북은 2, 8, 16, 30, 40, 50, 80, 100, 150, 200,
-            250, 300, 350, 400, 450, 500 um scale을 계산합니다. 강의 화면에서는
-            Fig2A에서 쓰기 좋은 50, 100, 500 um 대표 scale을 먼저 확인합니다.
+            250, 300, 350, 400, 450, 500 um scale을 계산합니다. 화면에서는 먼저
+            Fig2A에서 보기 좋은 50, 100, 500 um scale을 확인합니다.
             """
         ),
         code(
@@ -1097,10 +1093,10 @@ def spix_cells() -> list:
         ),
         md(
             """
-            SPIX 파트에서 얻는 것은 특정 gene list가 아니라 분석 단위입니다. 2 um
-            bin을 그대로 쓰기 어려운 상황에서, scale을 명시한 tissue unit으로 바꿔
-            이후 SVG, clustering, CCI, enrichment 같은 분석을 더 안정적으로 설계할
-            수 있게 해 줍니다.
+            SPIX 결과의 핵심은 gene list가 아니라 분석 단위입니다. 2 um bin을
+            그대로 쓰기 어려운 상황에서 scale이 명시된 tissue unit을 만들고, 이후
+            SVG, clustering, CCI, enrichment 분석을 같은 단위 위에서 다시 설계할
+            수 있습니다.
             """
         ),
     ]
@@ -1112,9 +1108,8 @@ def final_cells() -> list:
             """
             ## 9. 실행 시간 저장
 
-            마지막 셀은 실행 시간과 핵심 산출물 위치를 JSON으로 저장합니다. Colab
-            무료 티어에서 실제로 얼마나 걸렸는지 비교할 때 이 파일을 모으면
-            됩니다.
+            마지막으로 실행 시간과 주요 산출물 위치를 JSON으로 저장합니다. Colab
+            무료 티어에서 실제로 걸린 시간을 확인할 때 이 파일을 사용합니다.
             """
         ),
         code(
@@ -1161,19 +1156,22 @@ def combined_notebook(data_url: str, data_sha256: str):
     nb["cells"] = [
         md(
             """
-            # Choi Whisoo workshop: SVG, spatial clustering, CCI, SPIX
+            # 공간전사체 분석 실습: SVG, spatial clustering, CCI, SPIX
 
-            이 노트북은 Choi Whisoo 담당 파트를 하나의 Colab 실습으로 묶은
-            한국어 강의 자료입니다. 흐름은 분석 질문이 만들어지는 순서대로
-            구성했습니다.
+            2026 제20회 통계유전학 워크샵 공간전사체 분석 실습 중 최휘수 담당
+            파트입니다.
 
-            1. **SVG**: 어떤 gene이 공간 패턴을 만드는가?
-            2. **Spatial clustering**: 그 패턴들이 어떤 tissue domain으로 나뉘는가?
-            3. **Cell-cell interaction**: domain/cluster 사이에 어떤 LR signal이 보이는가?
-            4. **SPIX**: 2 um bin 데이터를 multiscale tissue unit으로 바꾸는 SPIX 분석은 무엇인가?
+            Session 4에서는 많이 쓰이는 표준 도구로 SVG, spatial clustering,
+            cell-cell interaction을 연결해서 봅니다. Session 6에서는 같은 Visium
+            HD P2 자료를 SPIX 파이프라인으로 처리해 multiscale tissue unit을
+            만듭니다.
 
-            앞의 세 파트는 각각 널리 쓰이는 표준 도구인 Squidpy와 Scanpy로
-            진행합니다. SPIX는 마지막 섹션에서 독립적으로 다룹니다.
+            실습 순서는 다음과 같습니다.
+
+            1. **SVG**: 공간적으로 조직화된 gene 찾기
+            2. **Spatial clustering**: expression 기반 tissue domain 나누기
+            3. **Cell-cell interaction**: cluster 사이 ligand-receptor signal 확인
+            4. **SPIX**: 2 um bin을 multiscale tissue unit으로 변환
             """
         ),
         md(
@@ -1182,12 +1180,12 @@ def combined_notebook(data_url: str, data_sha256: str):
 
             원본 P2 2 um 전체 데이터는 약 8.7M bins입니다. 로컬 high-memory
             서버에서는 `8M x 2515 genes` 경로가 동작했지만, 12GB 안팎의 Colab
-            무료 티어 메모리에서는 full read와 selected-gene materialization이
-            모두 실패했습니다.
+            무료 티어에서는 full read와 selected-gene materialization이 모두
+            실패했습니다.
 
-            이 실습의 기본 데이터는 `500,000 bins x 2,515 genes` native 2 um
-            ROI입니다. 앞의 표준 도구 파트는 같은 ROI 안의 50k 연속 sub-ROI로
-            실행 시간을 안정화하고, 마지막 SPIX 파트는 500k ROI 전체를 사용합니다.
+            그래서 실습 기본 데이터는 `500,000 bins x 2,515 genes` native 2 um
+            ROI로 맞췄습니다. 표준 도구 파트는 같은 ROI 안의 50k 연속 sub-ROI로
+            진행하고, SPIX 파트는 500k ROI 전체를 사용합니다.
             """
         ),
     ]
