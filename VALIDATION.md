@@ -39,10 +39,11 @@ Dataset details:
 Local fallback executor result, 2026-07-06:
 
 - Code cells: 36/36 passed.
-- Total elapsed: 379.53 seconds after local dependencies and data were present.
+- Total elapsed: 390.79 seconds after local dependencies and data were present.
 - Notebook structure: the practical notebook is split into short, stepwise code
-  cells for workshop use; no custom helper functions are defined inside the
-  notebook code cells.
+  cells for workshop use. Repeated file/checksum/timing/plotting chores live in
+  `notebooks/workshop_helpers.py`; the notebook cells still call Scanpy,
+  Squidpy, BANKSY, BayesSpace, SpaGCN, and SPIX directly.
 - ROI context plot input:
   `data/visiumhd_p2_roi_context_1000000_downsample.csv`
   - downsample points: 120,000 full-P2 coordinates
@@ -66,18 +67,17 @@ Local fallback executor result, 2026-07-06:
     unsafe, the notebook falls back to the full workshop gene set before
     calling R BayesSpace.
   - Pairwise ARI in the validation run:
-    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.389,
-    expression vs BayesSpace 0.633, expression vs SpaGCN 0.706,
-    Squidpy spatial graph vs BANKSY 0.121, Squidpy spatial graph vs
-    BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.065,
-    BANKSY vs BayesSpace 0.363, BANKSY vs SpaGCN 0.414,
-    BayesSpace vs SpaGCN 0.585.
+    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.410,
+    expression vs BayesSpace 0.633, expression vs SpaGCN 0.674,
+    Squidpy spatial graph vs BANKSY 0.114, Squidpy spatial graph vs
+    BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.073,
+    BANKSY vs BayesSpace 0.383, BANKSY vs SpaGCN 0.461,
+    BayesSpace vs SpaGCN 0.633.
 - Cell-cell interaction:
   - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
     `threshold=0.0`.
-  - Top CCI examples include `FN1-ITGA5`, `MIF-CD74`, `CD74-MIF`,
-    and `COL1A1-ITGB1`.
+  - Top CCI examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`.
 - SPIX section: full `1000000 x 2515` 2 um ROI, following the VisiumHD P2
   manuscript/reproduction path:
   - PCA/log-normalized embedding with 30 dimensions and up to 2,000 features.
@@ -108,12 +108,12 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 21
   - `r500`: 21
 - Slowest stages:
-  - SPIX multiscale segmentation: 95.95 seconds
-  - SPIX smoothing sweep: 50.41 seconds
-  - 8 um preprocessing with Scanpy/Squidpy: 46.25 seconds
-  - SPIX equalization sweep: 29.01 seconds
-  - SPIX multiscale Moran/SVG: 25.20 seconds
-  - BayesSpace spatial domain clustering: 25.12 seconds
+  - SPIX smoothing sweep: 94.68 seconds
+  - SPIX multiscale segmentation: 77.17 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 45.38 seconds
+  - SPIX equalization sweep: 28.50 seconds
+  - SPIX multiscale Moran/SVG: 27.13 seconds
+  - BayesSpace spatial domain clustering: 25.63 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

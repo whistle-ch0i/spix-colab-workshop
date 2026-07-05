@@ -25,6 +25,11 @@ DEFAULT_ROI_CONTEXT_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{ROI_CONTEXT_FILE}"
 )
+HELPER_FILE = "workshop_helpers.py"
+DEFAULT_HELPER_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"notebooks/{HELPER_FILE}"
+)
 DEFAULT_NOTEBOOK_DIR = "notebooks"
 COMBINED_NOTEBOOK = "Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb"
 
@@ -77,6 +82,7 @@ def setup_cells(
     data_sha256: str,
     roi_context_url: str,
     roi_context_sha256: str,
+    helper_url: str,
 ) -> list:
     setup_code = """
     import os
@@ -84,8 +90,6 @@ def setup_cells(
     import json
     import time
     import shutil
-    import hashlib
-    import platform
     import warnings
     import subprocess
     import urllib.request
@@ -111,6 +115,8 @@ def setup_cells(
     ROI_CONTEXT_FILE = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_FILE", __ROI_CONTEXT_FILE__)
     ROI_CONTEXT_URL = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_URL", __ROI_CONTEXT_URL__)
     ROI_CONTEXT_SHA256 = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_SHA256", __ROI_CONTEXT_SHA256__)
+    HELPER_FILE = os.environ.get("SPIX_WORKSHOP_HELPER_FILE", __HELPER_FILE__)
+    HELPER_URL = os.environ.get("SPIX_WORKSHOP_HELPER_URL", __HELPER_URL__)
 
     OUTPUT_DIR = Path("spix_korean_lecture_outputs") / LECTURE_ID
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -119,24 +125,38 @@ def setup_cells(
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
-    meminfo = {}
-    if Path("/proc/meminfo").exists():
-        for line in Path("/proc/meminfo").read_text().splitlines():
-            key, value = line.split(":", 1)
-            if key in {"MemTotal", "MemAvailable", "SwapTotal", "SwapFree"}:
-                meminfo[key] = round(float(value.strip().split()[0]) / 1024 / 1024, 2)
+    helper_candidates = [
+        Path(HELPER_FILE),
+        Path("notebooks") / HELPER_FILE,
+        Path.cwd() / "notebooks" / HELPER_FILE,
+        Path("/content") / HELPER_FILE,
+    ]
+    helper_path = next((path.resolve() for path in helper_candidates if path.exists()), None)
+    if helper_path is None:
+        helper_path = Path("/content" if IN_COLAB else ".") / HELPER_FILE
+        print("Downloading helper:", HELPER_URL)
+        urllib.request.urlretrieve(HELPER_URL, helper_path)
+        helper_path = helper_path.resolve()
+    sys.path.insert(0, str(helper_path.parent))
 
-    disk = shutil.disk_usage(Path.cwd())
-    runtime_info = {
-        "running_in_colab": bool(IN_COLAB),
-        "python": sys.version.split()[0],
-        "platform": platform.platform(),
-        "cpu_count": os.cpu_count(),
-        "thread_cap": N_JOBS,
-        "memory_gb": meminfo,
-        "cwd": str(Path.cwd().resolve()),
-        "disk_free_gb": round(disk.free / 1024**3, 2),
-    }
+    from workshop_helpers import (
+        add_segment_labels,
+        center_nonzero_panel,
+        domain_ari_table as make_domain_ari_table,
+        domain_count_table as make_domain_count_table,
+        file_sha256,
+        locate_or_download,
+        pseudobulk_visiumhd_2um_to_8um,
+        runtime_snapshot,
+        sample_indices,
+        sparse_vector,
+        spatial_scatter,
+        tidy_ligrec_result,
+        timed_stage,
+        top_rank_table,
+    )
+
+    runtime_info = runtime_snapshot(N_JOBS)
 
     print(json.dumps(runtime_info, indent=2, ensure_ascii=False))
     """
@@ -147,6 +167,8 @@ def setup_cells(
         .replace("__ROI_CONTEXT_FILE__", json.dumps(ROI_CONTEXT_FILE))
         .replace("__ROI_CONTEXT_URL__", json.dumps(roi_context_url))
         .replace("__ROI_CONTEXT_SHA256__", json.dumps(roi_context_sha256))
+        .replace("__HELPER_FILE__", json.dumps(HELPER_FILE))
+        .replace("__HELPER_URL__", json.dumps(helper_url))
     )
 
     return [
@@ -157,6 +179,11 @@ def setup_cells(
             먼저 지금 할당된 Colab runtime을 확인합니다. 실습 기본값은 CPU runtime,
             `N_JOBS=2`입니다. 시간이 충분하고 runtime이 넉넉하면 `N_JOBS`만 조금
             올리면 됩니다.
+
+            파일 다운로드, checksum 확인, 시간 기록처럼 분석의 핵심이 아닌 반복
+            작업은 `workshop_helpers.py`에 모아 두었습니다. 분석 도구 자체는 뒤에서
+            Scanpy, Squidpy, BANKSY, BayesSpace, SpaGCN, SPIX 원래 함수 이름으로
+            직접 호출합니다.
             """
         ),
         code(setup_code),
@@ -171,74 +198,73 @@ def setup_cells(
         ),
         code(
             """
-            stage = "import_or_install"
-            start = time.perf_counter()
+            with timed_stage("import_or_install", STAGE_TIMES):
+                if importlib.util.find_spec("SPIX") is None:
+                    repo_root = None
+                    for root in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+                        if (root / "SPIX" / "__init__.py").exists():
+                            repo_root = root
+                            break
 
-            if importlib.util.find_spec("SPIX") is None:
-                repo_root = None
-                for root in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-                    if (root / "SPIX" / "__init__.py").exists():
-                        repo_root = root
-                        break
+                    if repo_root is not None:
+                        sys.path.insert(0, str(repo_root))
+                    elif IN_COLAB:
+                        subprocess.check_call([
+                            sys.executable,
+                            "-m",
+                            "pip",
+                            "install",
+                            "-q",
+                            "git+https://github.com/whistle-ch0i/SPIX.git",
+                        ])
+                    else:
+                        raise ImportError("SPIX repo 안에서 실행하거나 SPIX를 설치하세요.")
 
-                if repo_root is not None:
-                    sys.path.insert(0, str(repo_root))
-                elif IN_COLAB:
+                needed = {
+                    "scanpy": "scanpy",
+                    "squidpy": "squidpy",
+                    "SpaGCN": "SpaGCN",
+                    "banksy": "pybanksy",
+                    "anndata": "anndata",
+                }
+                missing = [
+                    pip_name
+                    for module, pip_name in needed.items()
+                    if importlib.util.find_spec(module) is None
+                ]
+                if missing:
+                    if not IN_COLAB:
+                        raise ImportError(f"설치되지 않은 패키지: {missing}")
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *missing])
+
+                if shutil.which("Rscript") is None:
+                    raise ImportError("BayesSpace 실행을 위해 Rscript가 필요합니다.")
+
+                bayesspace_check = subprocess.run(
+                    [
+                        "Rscript",
+                        "-e",
+                        "quit(status=ifelse(requireNamespace('BayesSpace', quietly=TRUE), 0, 1))",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                if bayesspace_check.returncode != 0:
+                    if not IN_COLAB:
+                        raise ImportError("R package BayesSpace가 설치되어 있지 않습니다.")
                     subprocess.check_call([
-                        sys.executable,
-                        "-m",
-                        "pip",
-                        "install",
-                        "-q",
-                        "git+https://github.com/whistle-ch0i/SPIX.git",
+                        "Rscript",
+                        "-e",
+                        (
+                            "if (!requireNamespace('BiocManager', quietly=TRUE)) "
+                            "install.packages('BiocManager', repos='https://cloud.r-project.org'); "
+                            "BiocManager::install('BayesSpace', update=FALSE, ask=FALSE); "
+                            "if (!requireNamespace('BayesSpace', quietly=TRUE)) "
+                            "stop('BayesSpace install failed')"
+                        ),
                     ])
-                else:
-                    raise ImportError("SPIX repo 안에서 실행하거나 SPIX를 설치하세요.")
+                R_BAYESSPACE_READY = True
 
-            needed = {
-                "scanpy": "scanpy",
-                "squidpy": "squidpy",
-                "SpaGCN": "SpaGCN",
-                "banksy": "pybanksy",
-                "anndata": "anndata",
-            }
-            missing = [pip_name for module, pip_name in needed.items() if importlib.util.find_spec(module) is None]
-            if missing:
-                if not IN_COLAB:
-                    raise ImportError(f"설치되지 않은 패키지: {missing}")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *missing])
-
-            if shutil.which("Rscript") is None:
-                raise ImportError("BayesSpace 실행을 위해 Rscript가 필요합니다.")
-
-            bayesspace_check = subprocess.run(
-                [
-                    "Rscript",
-                    "-e",
-                    "quit(status=ifelse(requireNamespace('BayesSpace', quietly=TRUE), 0, 1))",
-                ],
-                capture_output=True,
-                text=True,
-            )
-            if bayesspace_check.returncode != 0:
-                if not IN_COLAB:
-                    raise ImportError("R package BayesSpace가 설치되어 있지 않습니다.")
-                subprocess.check_call([
-                    "Rscript",
-                    "-e",
-                    (
-                        "if (!requireNamespace('BiocManager', quietly=TRUE)) "
-                        "install.packages('BiocManager', repos='https://cloud.r-project.org'); "
-                        "BiocManager::install('BayesSpace', update=FALSE, ask=FALSE); "
-                        "if (!requireNamespace('BayesSpace', quietly=TRUE)) "
-                        "stop('BayesSpace install failed')"
-                    ),
-                ])
-            R_BAYESSPACE_READY = True
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("BayesSpace R package: ready")
             """
         ),
@@ -252,31 +278,25 @@ def setup_cells(
         ),
         code(
             """
-            stage = "patch_spix_optional_imports"
-            start = time.perf_counter()
+            with timed_stage("patch_spix_optional_imports", STAGE_TIMES):
+                if IN_COLAB:
+                    spix_spec = importlib.util.find_spec("SPIX")
+                    spix_root = Path(spix_spec.origin).parent
 
-            if IN_COLAB:
-                spix_spec = importlib.util.find_spec("SPIX")
-                spix_root = Path(spix_spec.origin).parent
+                    visualization_init = spix_root / "visualization" / "__init__.py"
+                    if visualization_init.exists():
+                        visualization_init.write_text(
+                            "from .plotting import *\\n"
+                            "from .origin_display import *\\n"
+                        )
 
-                visualization_init = spix_root / "visualization" / "__init__.py"
-                if visualization_init.exists():
-                    visualization_init.write_text(
-                        "from .plotting import *\\n"
-                        "from .origin_display import *\\n"
-                    )
-
-                analysis_init = spix_root / "analysis" / "__init__.py"
-                if analysis_init.exists():
-                    analysis_init.write_text(
-                        "import os\\n"
-                        "os.environ.setdefault('NUMBA_CACHE_DIR', '/tmp/numba_spix')\\n"
-                        "from .multiscale_moran_ranks import *\\n"
-                    )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+                    analysis_init = spix_root / "analysis" / "__init__.py"
+                    if analysis_init.exists():
+                        analysis_init.write_text(
+                            "import os\\n"
+                            "os.environ.setdefault('NUMBA_CACHE_DIR', '/tmp/numba_spix')\\n"
+                            "from .multiscale_moran_ranks import *\\n"
+                        )
             """
         ),
         md(
@@ -288,27 +308,21 @@ def setup_cells(
         ),
         code(
             """
-            stage = "import_analysis_packages"
-            start = time.perf_counter()
+            with timed_stage("import_analysis_packages", STAGE_TIMES):
+                import anndata as ad
+                import matplotlib.pyplot as plt
+                import numpy as np
+                import pandas as pd
+                import scanpy as sc
+                import scipy.sparse as sp
+                import scipy.io as sio
+                import squidpy as sq
+                import SpaGCN
+                from banksy.initialize_banksy import initialize_banksy
+                from banksy.run_banksy import run_banksy_multiparam
+                from IPython.display import display
+                import SPIX
 
-            import anndata as ad
-            import matplotlib.pyplot as plt
-            import numpy as np
-            import pandas as pd
-            import scanpy as sc
-            import scipy.sparse as sp
-            import scipy.io as sio
-            import squidpy as sq
-            import SpaGCN
-            from banksy.initialize_banksy import initialize_banksy
-            from banksy.run_banksy import run_banksy_multiparam
-            from IPython.display import display
-            from sklearn.metrics import adjusted_rand_score
-            import SPIX
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("Scanpy:", sc.__version__)
             print("Squidpy:", sq.__version__)
             print("BANKSY:", importlib.util.find_spec("banksy").origin)
@@ -331,56 +345,25 @@ def data_cells() -> list:
         ),
         code(
             """
-            stage = "load_2um_data"
-            start = time.perf_counter()
+            with timed_stage("load_2um_data", STAGE_TIMES):
+                data_path = locate_or_download(DATA_FILE, DATA_URL, sha256=DATA_SHA256)
+                observed_sha256 = file_sha256(data_path)
 
-            data_file_name = Path(DATA_FILE).name
-            candidate_paths = [
-                Path(DATA_FILE).expanduser(),
-                Path("data") / data_file_name,
-                Path("..") / "data" / data_file_name,
-                Path.cwd() / "data" / data_file_name,
-                Path("/content") / data_file_name,
-            ]
+                adata_2um = sc.read_h5ad(data_path)
+                adata_2um.obs_names = adata_2um.obs_names.astype(str)
+                adata_2um.var_names = adata_2um.var_names.astype(str)
+                coords_2um = np.asarray(adata_2um.obsm["spatial"], dtype=float)
 
-            data_path = None
-            for candidate in candidate_paths:
-                if candidate.exists():
-                    data_path = candidate.resolve()
-                    break
+                source = adata_2um.uns.get("spix_workshop_source", {})
+                data_summary = pd.DataFrame([{
+                    "2um_bins": adata_2um.n_obs,
+                    "genes": adata_2um.n_vars,
+                    "file_mb": round(data_path.stat().st_size / 1024**2, 2),
+                    "bin_size_um": source.get("bin_size_um", "unknown"),
+                    "full_source_shape": str(source.get("full_shape", "unknown")),
+                    "sha256": observed_sha256[:12] + "...",
+                }])
 
-            if data_path is None:
-                data_path = Path("/content" if IN_COLAB else ".") / data_file_name
-                print("Downloading:", DATA_URL)
-                urllib.request.urlretrieve(DATA_URL, data_path)
-                data_path = data_path.resolve()
-
-            file_hash = hashlib.sha256()
-            with data_path.open("rb") as fh:
-                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-                    file_hash.update(chunk)
-            observed_sha256 = file_hash.hexdigest()
-            if DATA_SHA256:
-                assert observed_sha256 == DATA_SHA256, f"Data SHA-256 mismatch: {observed_sha256}"
-
-            adata_2um = sc.read_h5ad(data_path)
-            adata_2um.obs_names = adata_2um.obs_names.astype(str)
-            adata_2um.var_names = adata_2um.var_names.astype(str)
-            coords_2um = np.asarray(adata_2um.obsm["spatial"], dtype=float)
-
-            source = adata_2um.uns.get("spix_workshop_source", {})
-            data_summary = pd.DataFrame([{
-                "2um_bins": adata_2um.n_obs,
-                "genes": adata_2um.n_vars,
-                "file_mb": round(data_path.stat().st_size / 1024**2, 2),
-                "bin_size_um": source.get("bin_size_um", "unknown"),
-                "full_source_shape": str(source.get("full_shape", "unknown")),
-                "sha256": observed_sha256[:12] + "...",
-            }])
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(data_summary)
             """
         ),
@@ -395,86 +378,47 @@ def data_cells() -> list:
         ),
         code(
             """
-            stage = "plot_selected_roi"
-            start = time.perf_counter()
-
-            context_file_name = Path(ROI_CONTEXT_FILE).name
-            context_candidates = [
-                Path(ROI_CONTEXT_FILE).expanduser(),
-                Path("data") / context_file_name,
-                Path("..") / "data" / context_file_name,
-                Path.cwd() / "data" / context_file_name,
-                Path("/content") / context_file_name,
-            ]
-
-            roi_context_path = None
-            for candidate in context_candidates:
-                if candidate.exists():
-                    roi_context_path = candidate.resolve()
-                    break
-
-            if roi_context_path is None:
-                roi_context_path = Path("/content" if IN_COLAB else ".") / context_file_name
-                print("Downloading:", ROI_CONTEXT_URL)
-                urllib.request.urlretrieve(ROI_CONTEXT_URL, roi_context_path)
-                roi_context_path = roi_context_path.resolve()
-
-            context_hash = hashlib.sha256()
-            with roi_context_path.open("rb") as fh:
-                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-                    context_hash.update(chunk)
-            observed_context_sha256 = context_hash.hexdigest()
-            if ROI_CONTEXT_SHA256:
-                assert observed_context_sha256 == ROI_CONTEXT_SHA256, (
-                    f"ROI context SHA-256 mismatch: {observed_context_sha256}"
+            with timed_stage("plot_selected_roi", STAGE_TIMES):
+                roi_context_path = locate_or_download(
+                    ROI_CONTEXT_FILE,
+                    ROI_CONTEXT_URL,
+                    sha256=ROI_CONTEXT_SHA256,
                 )
+                observed_context_sha256 = file_sha256(roi_context_path)
 
-            roi_context = pd.read_csv(roi_context_path)
-            full_points = roi_context[roi_context["kind"] == "full_p2_downsample"]
-            roi_box = roi_context[roi_context["kind"] == "roi_bbox"]
+                roi_context = pd.read_csv(roi_context_path)
+                full_points = roi_context[roi_context["kind"] == "full_p2_downsample"]
+                roi_box = roi_context[roi_context["kind"] == "roi_bbox"]
 
-            total_counts_2um = np.asarray(adata_2um.X.sum(axis=1)).ravel()
-            rng = np.random.default_rng(7)
-            if adata_2um.n_obs > 120000:
-                roi_plot_idx = np.sort(rng.choice(adata_2um.n_obs, size=120000, replace=False))
-            else:
-                roi_plot_idx = np.arange(adata_2um.n_obs)
+                total_counts_2um = np.asarray(adata_2um.X.sum(axis=1)).ravel()
+                roi_plot_idx = sample_indices(adata_2um.n_obs, max_points=120_000, seed=7)
 
-            fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.4), constrained_layout=True)
-            axes[0].scatter(full_points["x"], full_points["y"], s=0.3, c="#b8b8b8", rasterized=True)
-            axes[0].plot(roi_box["x"], roi_box["y"], color="#d55e00", linewidth=1.8)
-            axes[0].invert_yaxis()
-            axes[0].set_aspect("equal")
-            axes[0].set_title("Full P2 downsample + selected ROI")
-            axes[0].set_xticks([])
-            axes[0].set_yticks([])
+                fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.4), constrained_layout=True)
+                axes[0].scatter(full_points["x"], full_points["y"], s=0.3, c="#b8b8b8", rasterized=True)
+                axes[0].plot(roi_box["x"], roi_box["y"], color="#d55e00", linewidth=1.8)
+                axes[0].invert_yaxis()
+                axes[0].set_aspect("equal")
+                axes[0].set_title("Full P2 downsample + selected ROI")
+                axes[0].set_xticks([])
+                axes[0].set_yticks([])
 
-            axes[1].scatter(
-                coords_2um[roi_plot_idx, 0],
-                coords_2um[roi_plot_idx, 1],
-                s=1,
-                c=np.log1p(total_counts_2um[roi_plot_idx]),
-                cmap="viridis",
-                rasterized=True,
-            )
-            axes[1].invert_yaxis()
-            axes[1].set_aspect("equal")
-            axes[1].set_title("Selected ROI, log1p counts")
-            axes[1].set_xticks([])
-            axes[1].set_yticks([])
-            plt.show()
+                spatial_scatter(
+                    axes[1],
+                    coords_2um[roi_plot_idx],
+                    values=np.log1p(total_counts_2um[roi_plot_idx]),
+                    title="Selected ROI, log1p counts",
+                    size=1,
+                )
+                plt.show()
 
-            roi_summary = pd.DataFrame([{
-                "context_points": len(full_points),
-                "roi_x_min": float(roi_box["x"].min()),
-                "roi_x_max": float(roi_box["x"].max()),
-                "roi_y_min": float(roi_box["y"].min()),
-                "roi_y_max": float(roi_box["y"].max()),
-            }])
+                roi_summary = pd.DataFrame([{
+                    "context_points": len(full_points),
+                    "roi_x_min": float(roi_box["x"].min()),
+                    "roi_x_max": float(roi_box["x"].max()),
+                    "roi_y_min": float(roi_box["y"].min()),
+                    "roi_y_max": float(roi_box["y"].max()),
+                }])
 
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(roi_summary)
             """
         ),
@@ -488,30 +432,25 @@ def data_cells() -> list:
         ),
         code(
             """
-            stage = "quick_qc_2um"
-            start = time.perf_counter()
+            with timed_stage("quick_qc_2um", STAGE_TIMES):
+                if sp.issparse(adata_2um.X):
+                    detected_genes_2um = np.asarray((adata_2um.X > 0).sum(axis=1)).ravel()
+                else:
+                    detected_genes_2um = (adata_2um.X > 0).sum(axis=1)
 
-            if sp.issparse(adata_2um.X):
-                detected_genes_2um = np.asarray((adata_2um.X > 0).sum(axis=1)).ravel()
-            else:
-                detected_genes_2um = (adata_2um.X > 0).sum(axis=1)
+                fig, axes = plt.subplots(1, 2, figsize=(8.5, 3.2), constrained_layout=True)
+                axes[0].hist(total_counts_2um, bins=50, color="#4c78a8")
+                axes[0].set_title("UMI counts per 2 um bin")
+                axes[1].hist(detected_genes_2um, bins=50, color="#59a14f")
+                axes[1].set_title("Detected genes per 2 um bin")
+                plt.show()
 
-            fig, axes = plt.subplots(1, 2, figsize=(8.5, 3.2), constrained_layout=True)
-            axes[0].hist(total_counts_2um, bins=50, color="#4c78a8")
-            axes[0].set_title("UMI counts per 2 um bin")
-            axes[1].hist(detected_genes_2um, bins=50, color="#59a14f")
-            axes[1].set_title("Detected genes per 2 um bin")
-            plt.show()
+                qc_summary = pd.DataFrame([{
+                    "median_counts": float(np.median(total_counts_2um)),
+                    "median_detected_genes": float(np.median(detected_genes_2um)),
+                    "max_counts": float(np.max(total_counts_2um)),
+                }])
 
-            qc_summary = pd.DataFrame([{
-                "median_counts": float(np.median(total_counts_2um)),
-                "median_detected_genes": float(np.median(detected_genes_2um)),
-                "max_counts": float(np.max(total_counts_2um)),
-            }])
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(qc_summary)
             """
         ),
@@ -527,64 +466,24 @@ def eight_um_cells() -> list:
             SVG, spatial domain, CCI는 8 um 단위로 진행합니다. 2 um bin 4 x 4개를
             같은 8 um bin으로 묶고 counts를 합산합니다. 이렇게 하면 공간 위치는
             유지하면서 표준 도구가 안정적으로 돌아갑니다.
+
+            아래 helper는 `array_row`, `array_col`을 4로 나눈 grid를 만들고, 같은
+            grid에 들어온 2 um bin들의 count를 합산합니다. 분석 도구가 아니라 실습용
+            데이터 준비 함수입니다.
             """
         ),
         code(
             """
-            stage = "make_8um_pseudobulk"
-            start = time.perf_counter()
+            with timed_stage("make_8um_pseudobulk", STAGE_TIMES):
+                adata_8um = pseudobulk_visiumhd_2um_to_8um(adata_2um, coords_2um)
+                coords_8um = np.asarray(adata_8um.obsm["spatial"], dtype=float)
+                total_counts_8um = np.asarray(adata_8um.X.sum(axis=1)).ravel()
 
-            row_8um = (adata_2um.obs["array_row"].to_numpy(dtype=int) // 4)
-            col_8um = (adata_2um.obs["array_col"].to_numpy(dtype=int) // 4)
-            group_labels = pd.Series(row_8um.astype(str) + "_" + col_8um.astype(str))
-            group_codes, group_names = pd.factorize(group_labels, sort=True)
-            n_groups = len(group_names)
-            group_grid = np.array([name.split("_") for name in group_names], dtype=int)
+                pseudobulk_summary = adata_8um.obs["n_2um_bins"].describe().to_frame().T
 
-            aggregation = sp.csr_matrix(
-                (
-                    np.ones(adata_2um.n_obs, dtype=np.float32),
-                    (group_codes, np.arange(adata_2um.n_obs)),
-                ),
-                shape=(n_groups, adata_2um.n_obs),
-            )
-
-            X_8um = aggregation @ adata_2um.X
-            if not sp.issparse(X_8um):
-                X_8um = sp.csr_matrix(X_8um)
-
-            bins_per_8um = np.asarray(aggregation.sum(axis=1)).ravel()
-            mean_x = np.asarray(aggregation @ coords_2um[:, 0]).ravel() / bins_per_8um
-            mean_y = np.asarray(aggregation @ coords_2um[:, 1]).ravel() / bins_per_8um
-            mean_array_row = np.asarray(
-                aggregation @ adata_2um.obs["array_row"].to_numpy(dtype=float)
-            ).ravel() / bins_per_8um
-            mean_array_col = np.asarray(
-                aggregation @ adata_2um.obs["array_col"].to_numpy(dtype=float)
-            ).ravel() / bins_per_8um
-
-            obs_8um = pd.DataFrame(index=[f"bin8_{name}" for name in group_names])
-            obs_8um["n_2um_bins"] = bins_per_8um.astype(int)
-            obs_8um["array_row"] = group_grid[:, 0]
-            obs_8um["array_col"] = group_grid[:, 1]
-            obs_8um["array_row_2um_mean"] = mean_array_row
-            obs_8um["array_col_2um_mean"] = mean_array_col
-
-            adata_8um = ad.AnnData(X=X_8um.tocsr(), obs=obs_8um, var=adata_2um.var.copy())
-            adata_8um.var_names = adata_2um.var_names.copy()
-            adata_8um.var_names_make_unique()
-            adata_8um.obsm["spatial"] = np.column_stack([mean_x, mean_y]).astype(np.float32)
-            adata_8um.uns["pseudobulk"] = {"source_bin_um": 2, "target_bin_um": 8, "rule": "4x4 sum"}
-
-            coords_8um = np.asarray(adata_8um.obsm["spatial"], dtype=float)
-            total_counts_8um = np.asarray(adata_8um.X.sum(axis=1)).ravel()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"2 um: {adata_2um.n_obs:,} bins x {adata_2um.n_vars:,} genes")
             print(f"8 um: {adata_8um.n_obs:,} bins x {adata_8um.n_vars:,} genes")
-            display(obs_8um['n_2um_bins'].describe().to_frame().T)
+            display(pseudobulk_summary)
             """
         ),
         md(
@@ -597,48 +496,25 @@ def eight_um_cells() -> list:
         ),
         code(
             """
-            stage = "plot_8um_pseudobulk"
-            start = time.perf_counter()
+            with timed_stage("plot_8um_pseudobulk", STAGE_TIMES):
+                plot_2um_idx = sample_indices(adata_2um.n_obs, max_points=120_000, seed=7)
 
-            rng = np.random.default_rng(7)
-            if adata_2um.n_obs > 120000:
-                plot_2um_idx = np.sort(rng.choice(adata_2um.n_obs, size=120000, replace=False))
-            else:
-                plot_2um_idx = np.arange(adata_2um.n_obs)
-
-            fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.2), constrained_layout=True)
-            axes[0].scatter(
-                coords_2um[plot_2um_idx, 0],
-                coords_2um[plot_2um_idx, 1],
-                s=1,
-                c=np.log1p(total_counts_2um[plot_2um_idx]),
-                cmap="viridis",
-                rasterized=True,
-            )
-            axes[0].invert_yaxis()
-            axes[0].set_aspect("equal")
-            axes[0].set_title("2 um bins")
-            axes[0].set_xticks([])
-            axes[0].set_yticks([])
-
-            axes[1].scatter(
-                coords_8um[:, 0],
-                coords_8um[:, 1],
-                s=3,
-                c=np.log1p(total_counts_8um),
-                cmap="viridis",
-                rasterized=True,
-            )
-            axes[1].invert_yaxis()
-            axes[1].set_aspect("equal")
-            axes[1].set_title("8 um pseudobulk")
-            axes[1].set_xticks([])
-            axes[1].set_yticks([])
-            plt.show()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+                fig, axes = plt.subplots(1, 2, figsize=(9.5, 4.2), constrained_layout=True)
+                spatial_scatter(
+                    axes[0],
+                    coords_2um[plot_2um_idx],
+                    values=np.log1p(total_counts_2um[plot_2um_idx]),
+                    title="2 um bins",
+                    size=1,
+                )
+                spatial_scatter(
+                    axes[1],
+                    coords_8um,
+                    values=np.log1p(total_counts_8um),
+                    title="8 um pseudobulk",
+                    size=3,
+                )
+                plt.show()
             """
         ),
         md(
@@ -651,71 +527,66 @@ def eight_um_cells() -> list:
         ),
         code(
             """
-            stage = "preprocess_8um_for_standard_tools"
-            start = time.perf_counter()
+            with timed_stage("preprocess_8um_for_standard_tools", STAGE_TIMES):
+                analysis_adata = adata_8um.copy()
+                HVG_N_TOP = int(os.environ.get("SPIX_WORKSHOP_HVG_N_TOP", "1200"))
+                N_PCS = int(os.environ.get("SPIX_WORKSHOP_N_PCS", "30"))
+                N_NEIGHBORS = int(os.environ.get("SPIX_WORKSHOP_N_NEIGHBORS", "25"))
 
-            analysis_adata = adata_8um.copy()
-            HVG_N_TOP = int(os.environ.get("SPIX_WORKSHOP_HVG_N_TOP", "1200"))
-            N_PCS = int(os.environ.get("SPIX_WORKSHOP_N_PCS", "30"))
-            N_NEIGHBORS = int(os.environ.get("SPIX_WORKSHOP_N_NEIGHBORS", "25"))
+                sc.pp.normalize_total(analysis_adata, target_sum=1e4)
+                sc.pp.log1p(analysis_adata)
+                analysis_adata.layers["log_norm"] = analysis_adata.X.copy()
 
-            sc.pp.normalize_total(analysis_adata, target_sum=1e4)
-            sc.pp.log1p(analysis_adata)
-            analysis_adata.layers["log_norm"] = analysis_adata.X.copy()
+                sc.pp.highly_variable_genes(
+                    analysis_adata,
+                    n_top_genes=min(HVG_N_TOP, analysis_adata.n_vars),
+                    flavor="seurat",
+                )
 
-            sc.pp.highly_variable_genes(
-                analysis_adata,
-                n_top_genes=min(HVG_N_TOP, analysis_adata.n_vars),
-                flavor="seurat",
-            )
+                sc.pp.pca(
+                    analysis_adata,
+                    n_comps=min(N_PCS, analysis_adata.n_obs - 1, analysis_adata.n_vars - 1),
+                    mask_var="highly_variable",
+                    svd_solver="arpack",
+                    random_state=7,
+                )
 
-            sc.pp.pca(
-                analysis_adata,
-                n_comps=min(N_PCS, analysis_adata.n_obs - 1, analysis_adata.n_vars - 1),
-                mask_var="highly_variable",
-                svd_solver="arpack",
-                random_state=7,
-            )
+                sc.pp.neighbors(
+                    analysis_adata,
+                    n_neighbors=N_NEIGHBORS,
+                    n_pcs=min(N_PCS, analysis_adata.obsm["X_pca"].shape[1]),
+                    key_added="expression",
+                    random_state=7,
+                )
 
-            sc.pp.neighbors(
-                analysis_adata,
-                n_neighbors=N_NEIGHBORS,
-                n_pcs=min(N_PCS, analysis_adata.obsm["X_pca"].shape[1]),
-                key_added="expression",
-                random_state=7,
-            )
+                sq.gr.spatial_neighbors(
+                    analysis_adata,
+                    spatial_key="spatial",
+                    coord_type="generic",
+                    n_neighs=6,
+                    key_added="spatial",
+                )
 
-            sq.gr.spatial_neighbors(
-                analysis_adata,
-                spatial_key="spatial",
-                coord_type="generic",
-                n_neighs=6,
-                key_added="spatial",
-            )
+                sc.tl.leiden(
+                    analysis_adata,
+                    resolution=0.2,
+                    neighbors_key="expression",
+                    key_added="expression_leiden",
+                    flavor="igraph",
+                    n_iterations=2,
+                    directed=False,
+                    random_state=7,
+                )
 
-            sc.tl.leiden(
-                analysis_adata,
-                resolution=0.2,
-                neighbors_key="expression",
-                key_added="expression_leiden",
-                flavor="igraph",
-                n_iterations=2,
-                directed=False,
-                random_state=7,
-            )
+                analysis_coords = np.asarray(analysis_adata.obsm["spatial"], dtype=float)
+                expression_cluster_summary = (
+                    analysis_adata.obs["expression_leiden"]
+                    .value_counts()
+                    .sort_index()
+                    .rename_axis("expression_leiden")
+                    .reset_index(name="n_8um_bins")
+                )
 
-            analysis_coords = np.asarray(analysis_adata.obsm["spatial"], dtype=float)
-            expression_cluster_summary = (
-                analysis_adata.obs["expression_leiden"]
-                .value_counts()
-                .sort_index()
-                .rename_axis("expression_leiden")
-                .reset_index(name="n_8um_bins")
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"analysis object: {analysis_adata.n_obs:,} bins x {analysis_adata.n_vars:,} genes")
             display(expression_cluster_summary)
             """
@@ -737,51 +608,51 @@ def svg_cells() -> list:
             같이 사용해서, 가까운 bin들끼리 비슷하게 높거나 낮은 gene을 찾습니다.
             그래서 SVG는 spatial domain을 해석하거나, 특정 조직 구조를 설명할 marker
             후보를 잡을 때 먼저 보게 됩니다.
+
+            여기서는 Squidpy의 Moran's I를 사용합니다. 값이 높을수록 해당 gene의
+            발현이 무작위로 흩어진 것이 아니라, 공간적으로 모여 있는 경향이 강하다고
+            해석합니다. HVG와 SVG가 많이 겹치지 않는다면, “변동이 큰 gene”과
+            “조직 위에서 정리된 gene”이 서로 다를 수 있다는 뜻입니다.
             """
         ),
         code(
             """
-            stage = "svg_hvg_vs_moran"
-            start = time.perf_counter()
+            with timed_stage("svg_hvg_vs_moran", STAGE_TIMES):
+                svg_genes = list(analysis_adata.var_names)
+                svg_moran = sq.gr.spatial_autocorr(
+                    analysis_adata,
+                    genes=svg_genes,
+                    mode="moran",
+                    layer="log_norm",
+                    n_perms=None,
+                    n_jobs=N_JOBS,
+                    backend="loky",
+                    copy=True,
+                    show_progress_bar=False,
+                )
 
-            svg_genes = list(analysis_adata.var_names)
-            svg_moran = sq.gr.spatial_autocorr(
-                analysis_adata,
-                genes=svg_genes,
-                mode="moran",
-                layer="log_norm",
-                n_perms=None,
-                n_jobs=N_JOBS,
-                backend="loky",
-                copy=True,
-                show_progress_bar=False,
-            )
+                svg_table = svg_moran.sort_values("I", ascending=False).copy()
+                svg_table["gene"] = svg_table.index
+                svg_table["svg_rank"] = np.arange(1, len(svg_table) + 1)
 
-            svg_table = svg_moran.sort_values("I", ascending=False).copy()
-            svg_table["gene"] = svg_table.index
-            svg_table["svg_rank"] = np.arange(1, len(svg_table) + 1)
+                hvg_table = analysis_adata.var[["means", "dispersions_norm", "highly_variable"]].copy()
+                hvg_table["gene"] = hvg_table.index
+                hvg_table = hvg_table.sort_values("dispersions_norm", ascending=False)
+                hvg_table["hvg_rank"] = np.arange(1, len(hvg_table) + 1)
 
-            hvg_table = analysis_adata.var[["means", "dispersions_norm", "highly_variable"]].copy()
-            hvg_table["gene"] = hvg_table.index
-            hvg_table = hvg_table.sort_values("dispersions_norm", ascending=False)
-            hvg_table["hvg_rank"] = np.arange(1, len(hvg_table) + 1)
+                top_hvg = hvg_table.head(20)[["hvg_rank", "gene", "dispersions_norm"]].reset_index(drop=True)
+                top_svg = svg_table.head(20)[["svg_rank", "gene", "I"]].reset_index(drop=True)
+                hvg_svg_comparison = pd.concat(
+                    [
+                        top_hvg.add_prefix("HVG_"),
+                        top_svg.add_prefix("SVG_"),
+                    ],
+                    axis=1,
+                )
 
-            top_hvg = hvg_table.head(20)[["hvg_rank", "gene", "dispersions_norm"]].reset_index(drop=True)
-            top_svg = svg_table.head(20)[["svg_rank", "gene", "I"]].reset_index(drop=True)
-            hvg_svg_comparison = pd.concat(
-                [
-                    top_hvg.add_prefix("HVG_"),
-                    top_svg.add_prefix("SVG_"),
-                ],
-                axis=1,
-            )
+                overlap_top100 = len(set(hvg_table.head(100)["gene"]) & set(svg_table.head(100)["gene"]))
+                top_svg_genes = svg_table.head(6)["gene"].tolist()
 
-            overlap_top100 = len(set(hvg_table.head(100)["gene"]) & set(svg_table.head(100)["gene"]))
-            top_svg_genes = svg_table.head(6)["gene"].tolist()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"Top 100 HVG/SVG overlap: {overlap_top100} genes")
             display(hvg_svg_comparison)
             """
@@ -800,41 +671,31 @@ def svg_cells() -> list:
         ),
         code(
             """
-            stage = "svg_gene_maps"
-            start = time.perf_counter()
+            with timed_stage("svg_gene_maps", STAGE_TIMES):
+                genes_to_plot = top_svg_genes[:4]
+                expression_matrix = analysis_adata.layers["log_norm"]
 
-            genes_to_plot = top_svg_genes[:4]
-            expression_matrix = analysis_adata.layers["log_norm"]
-
-            fig, axes = plt.subplots(1, len(genes_to_plot), figsize=(4.0 * len(genes_to_plot), 3.8), constrained_layout=True)
-            if len(genes_to_plot) == 1:
-                axes = [axes]
-
-            for ax, gene in zip(axes, genes_to_plot):
-                gene_index = analysis_adata.var_names.get_loc(gene)
-                gene_values = expression_matrix[:, gene_index]
-                if sp.issparse(gene_values):
-                    gene_values = gene_values.toarray()
-                gene_values = np.asarray(gene_values).ravel()
-
-                ax.scatter(
-                    analysis_coords[:, 0],
-                    analysis_coords[:, 1],
-                    s=3,
-                    c=gene_values,
-                    cmap="magma",
-                    rasterized=True,
+                fig, axes = plt.subplots(
+                    1,
+                    len(genes_to_plot),
+                    figsize=(4.0 * len(genes_to_plot), 3.8),
+                    constrained_layout=True,
                 )
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-                ax.set_title(gene)
-                ax.set_xticks([])
-                ax.set_yticks([])
-            plt.show()
+                if len(genes_to_plot) == 1:
+                    axes = [axes]
 
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+                for ax, gene in zip(axes, genes_to_plot):
+                    gene_index = analysis_adata.var_names.get_loc(gene)
+                    gene_values = sparse_vector(expression_matrix, gene_index)
+                    spatial_scatter(
+                        ax,
+                        analysis_coords,
+                        values=gene_values,
+                        title=gene,
+                        size=3,
+                        cmap="magma",
+                    )
+                plt.show()
             """
         ),
     ]
@@ -860,33 +721,28 @@ def domain_cells() -> list:
             - BANKSY: 주변 발현과 방향성 feature를 함께 쓰는 spatial domain 방법
             - BayesSpace: 인접 spot이 같은 domain일 가능성을 모델에 넣는 Bayesian 방법
             - SpaGCN: spatial graph convolution으로 발현과 위치를 함께 학습하는 방법
+
+            모든 방법을 같은 정답에 맞추려는 것이 목표는 아닙니다. 같은 영역을
+            안정적으로 잡는지, 특정 방법에서만 갈라지는 영역이 있는지, marker가
+            해석 가능한지를 같이 보는 것이 더 중요합니다.
             """
         ),
         code(
             """
-            stage = "select_domain_panel"
-            start = time.perf_counter()
+            with timed_stage("select_domain_panel", STAGE_TIMES):
+                DOMAIN_MAX_OBS = int(os.environ.get("SPIX_WORKSHOP_DOMAIN_MAX_OBS", "3500"))
+                domain_idx = center_nonzero_panel(
+                    analysis_coords,
+                    total_counts_8um,
+                    max_obs=DOMAIN_MAX_OBS,
+                )
 
-            DOMAIN_MAX_OBS = int(os.environ.get("SPIX_WORKSHOP_DOMAIN_MAX_OBS", "3500"))
-            nonzero_domain_idx = np.flatnonzero(total_counts_8um > 0)
-            nonzero_domain_coords = analysis_coords[nonzero_domain_idx]
-            center_8um = np.median(nonzero_domain_coords, axis=0)
-            distance_to_center = ((nonzero_domain_coords - center_8um) ** 2).sum(axis=1)
-            if len(nonzero_domain_idx) <= DOMAIN_MAX_OBS:
-                domain_idx = nonzero_domain_idx
-            else:
-                selected_local_idx = np.argpartition(distance_to_center, DOMAIN_MAX_OBS - 1)[:DOMAIN_MAX_OBS]
-                domain_idx = np.sort(nonzero_domain_idx[selected_local_idx])
+                domain_adata = analysis_adata[domain_idx].copy()
+                domain_coords = np.asarray(domain_adata.obsm["spatial"], dtype=float)
+                DOMAIN_N_PCS = min(20, domain_adata.obsm["X_pca"].shape[1])
+                domain_hvg_table = domain_adata.var[domain_adata.var["highly_variable"]].copy()
+                domain_hvg_table = domain_hvg_table.sort_values("dispersions_norm", ascending=False)
 
-            domain_adata = analysis_adata[domain_idx].copy()
-            domain_coords = np.asarray(domain_adata.obsm["spatial"], dtype=float)
-            DOMAIN_N_PCS = min(20, domain_adata.obsm["X_pca"].shape[1])
-            domain_hvg_table = domain_adata.var[domain_adata.var["highly_variable"]].copy()
-            domain_hvg_table = domain_hvg_table.sort_values("dispersions_norm", ascending=False)
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"domain panel: {domain_adata.n_obs:,} nonzero 8 um bins x {domain_adata.n_vars:,} genes")
             """
         ),
@@ -901,30 +757,25 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "domain_expression_baseline"
-            start = time.perf_counter()
+            with timed_stage("domain_expression_baseline", STAGE_TIMES):
+                sc.pp.neighbors(
+                    domain_adata,
+                    n_neighbors=15,
+                    use_rep="X_pca",
+                    key_added="expression_domain_graph",
+                    random_state=7,
+                )
+                sc.tl.leiden(
+                    domain_adata,
+                    resolution=0.35,
+                    neighbors_key="expression_domain_graph",
+                    key_added="expression_domain",
+                    flavor="igraph",
+                    n_iterations=2,
+                    directed=False,
+                    random_state=7,
+                )
 
-            sc.pp.neighbors(
-                domain_adata,
-                n_neighbors=15,
-                use_rep="X_pca",
-                key_added="expression_domain_graph",
-                random_state=7,
-            )
-            sc.tl.leiden(
-                domain_adata,
-                resolution=0.35,
-                neighbors_key="expression_domain_graph",
-                key_added="expression_domain",
-                flavor="igraph",
-                n_iterations=2,
-                directed=False,
-                random_state=7,
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("clusters:", domain_adata.obs["expression_domain"].nunique())
             """
         ),
@@ -940,30 +791,25 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "domain_squidpy_spatial_graph"
-            start = time.perf_counter()
+            with timed_stage("domain_squidpy_spatial_graph", STAGE_TIMES):
+                sq.gr.spatial_neighbors(
+                    domain_adata,
+                    spatial_key="spatial",
+                    coord_type="generic",
+                    n_neighs=6,
+                    key_added="squidpy_spatial",
+                )
+                sc.tl.leiden(
+                    domain_adata,
+                    adjacency=domain_adata.obsp["squidpy_spatial_connectivities"],
+                    resolution=0.35,
+                    key_added="squidpy_spatial_domain",
+                    flavor="igraph",
+                    n_iterations=2,
+                    directed=False,
+                    random_state=7,
+                )
 
-            sq.gr.spatial_neighbors(
-                domain_adata,
-                spatial_key="spatial",
-                coord_type="generic",
-                n_neighs=6,
-                key_added="squidpy_spatial",
-            )
-            sc.tl.leiden(
-                domain_adata,
-                adjacency=domain_adata.obsp["squidpy_spatial_connectivities"],
-                resolution=0.35,
-                key_added="squidpy_spatial_domain",
-                flavor="igraph",
-                n_iterations=2,
-                directed=False,
-                random_state=7,
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("clusters:", domain_adata.obs["squidpy_spatial_domain"].nunique())
             """
         ),
@@ -978,59 +824,54 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "domain_banksy"
-            start = time.perf_counter()
+            with timed_stage("domain_banksy", STAGE_TIMES):
+                BANKSY_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BANKSY_N_GENES", "800"))
+                banksy_genes = domain_hvg_table.head(min(BANKSY_N_GENES, len(domain_hvg_table))).index.tolist()
+                banksy_adata = domain_adata[:, banksy_genes].copy()
+                if sp.issparse(banksy_adata.X):
+                    gene_mean = np.asarray(banksy_adata.X.mean(axis=0)).ravel()
+                    gene_mean2 = np.asarray(banksy_adata.X.power(2).mean(axis=0)).ravel()
+                    keep_gene = (gene_mean2 - gene_mean**2) > 1e-8
+                else:
+                    keep_gene = np.var(np.asarray(banksy_adata.X), axis=0) > 1e-8
+                banksy_adata = banksy_adata[:, keep_gene].copy()
+                banksy_adata.obs["x"] = banksy_adata.obsm["spatial"][:, 0]
+                banksy_adata.obs["y"] = banksy_adata.obsm["spatial"][:, 1]
 
-            BANKSY_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BANKSY_N_GENES", "800"))
-            banksy_genes = domain_hvg_table.head(min(BANKSY_N_GENES, len(domain_hvg_table))).index.tolist()
-            banksy_adata = domain_adata[:, banksy_genes].copy()
-            if sp.issparse(banksy_adata.X):
-                gene_mean = np.asarray(banksy_adata.X.mean(axis=0)).ravel()
-                gene_mean2 = np.asarray(banksy_adata.X.power(2).mean(axis=0)).ravel()
-                keep_gene = (gene_mean2 - gene_mean**2) > 1e-8
-            else:
-                keep_gene = np.var(np.asarray(banksy_adata.X), axis=0) > 1e-8
-            banksy_adata = banksy_adata[:, keep_gene].copy()
-            banksy_adata.obs["x"] = banksy_adata.obsm["spatial"][:, 0]
-            banksy_adata.obs["y"] = banksy_adata.obsm["spatial"][:, 1]
+                banksy_dict = initialize_banksy(
+                    banksy_adata,
+                    coord_keys=("x", "y", "spatial"),
+                    num_neighbours=15,
+                    nbr_weight_decay="scaled_gaussian",
+                    max_m=1,
+                    plt_edge_hist=False,
+                    plt_nbr_weights=False,
+                    plt_agf_angles=False,
+                    plt_theta=False,
+                )
+                banksy_results = run_banksy_multiparam(
+                    banksy_adata,
+                    banksy_dict,
+                    lambda_list=[0.8],
+                    resolutions=[0.5],
+                    color_list=["tab:blue"] * 256,
+                    max_m=1,
+                    filepath=str(OUTPUT_DIR / "banksy"),
+                    key=("x", "y", "spatial"),
+                    annotation_key=None,
+                    savefig=False,
+                    add_nonspatial=False,
+                    pca_dims=[DOMAIN_N_PCS],
+                    partition_seed=7,
+                )
+                banksy_label_obj = banksy_results.iloc[0]["labels"]
+                if hasattr(banksy_label_obj, "dense"):
+                    banksy_labels = np.asarray(banksy_label_obj.dense)
+                else:
+                    banksy_labels = np.asarray(banksy_label_obj)
+                domain_adata.obs["banksy_domain"] = pd.Categorical(banksy_labels.astype(str))
+                plt.close("all")
 
-            banksy_dict = initialize_banksy(
-                banksy_adata,
-                coord_keys=("x", "y", "spatial"),
-                num_neighbours=15,
-                nbr_weight_decay="scaled_gaussian",
-                max_m=1,
-                plt_edge_hist=False,
-                plt_nbr_weights=False,
-                plt_agf_angles=False,
-                plt_theta=False,
-            )
-            banksy_results = run_banksy_multiparam(
-                banksy_adata,
-                banksy_dict,
-                lambda_list=[0.8],
-                resolutions=[0.5],
-                color_list=["tab:blue"] * 256,
-                max_m=1,
-                filepath=str(OUTPUT_DIR / "banksy"),
-                key=("x", "y", "spatial"),
-                annotation_key=None,
-                savefig=False,
-                add_nonspatial=False,
-                pca_dims=[DOMAIN_N_PCS],
-                partition_seed=7,
-            )
-            banksy_label_obj = banksy_results.iloc[0]["labels"]
-            if hasattr(banksy_label_obj, "dense"):
-                banksy_labels = np.asarray(banksy_label_obj.dense)
-            else:
-                banksy_labels = np.asarray(banksy_label_obj)
-            domain_adata.obs["banksy_domain"] = pd.Categorical(banksy_labels.astype(str))
-            plt.close("all")
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"BANKSY genes: {banksy_adata.n_vars:,}")
             print("clusters:", domain_adata.obs["banksy_domain"].nunique())
             """
@@ -1045,139 +886,139 @@ def domain_cells() -> list:
 
             실습에서는 시간을 줄이기 위해 MCMC 반복 수를 작게 둡니다. 논문용 분석에서
             BayesSpace를 정식으로 쓴다면 `q` 선택과 반복 수를 별도로 점검해야 합니다.
+
+            BayesSpace는 입력 spot/bin의 count가 모두 있어야 안정적으로 동작합니다.
+            그래서 HVG subset에서 zero-count bin이 생기면 전체 workshop gene set으로
+            되돌린 뒤 실행합니다. 이 처리는 오류를 숨기기 위한 것이 아니라, 같은
+            spatial panel을 유지하면서 BayesSpace 입력 조건을 맞추기 위한 것입니다.
             """
         ),
         code(
             """
-            stage = "domain_bayesspace"
-            start = time.perf_counter()
-
-            BAYESSPACE_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_N_GENES", str(domain_adata.n_vars)))
-            BAYESSPACE_Q = int(
-                os.environ.get(
-                    "SPIX_WORKSHOP_BAYESSPACE_Q",
-                    str(domain_adata.obs["expression_domain"].nunique()),
+            with timed_stage("domain_bayesspace", STAGE_TIMES):
+                BAYESSPACE_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_N_GENES", str(domain_adata.n_vars)))
+                BAYESSPACE_Q = int(
+                    os.environ.get(
+                        "SPIX_WORKSHOP_BAYESSPACE_Q",
+                        str(domain_adata.obs["expression_domain"].nunique()),
+                    )
                 )
-            )
-            BAYESSPACE_D = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_D", "15"))
-            BAYESSPACE_NREP = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_NREP", "200"))
-            BAYESSPACE_BURNIN = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_BURNIN", "50"))
+                BAYESSPACE_D = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_D", "15"))
+                BAYESSPACE_NREP = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_NREP", "200"))
+                BAYESSPACE_BURNIN = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_BURNIN", "50"))
 
-            bayesspace_dir = OUTPUT_DIR / "bayesspace"
-            bayesspace_dir.mkdir(parents=True, exist_ok=True)
+                bayesspace_dir = OUTPUT_DIR / "bayesspace"
+                bayesspace_dir.mkdir(parents=True, exist_ok=True)
 
-            if BAYESSPACE_N_GENES >= domain_adata.n_vars:
-                bayesspace_genes = domain_adata.var_names.tolist()
-            else:
-                bayesspace_genes = domain_hvg_table.head(
-                    min(BAYESSPACE_N_GENES, len(domain_hvg_table))
-                ).index.tolist()
-            bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
-            bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
-            if np.any(bayesspace_spot_counts <= 0):
-                print("BayesSpace subset에 zero-count bin이 있어 전체 gene set으로 다시 준비합니다.")
-                bayesspace_genes = domain_adata.var_names.tolist()
+                if BAYESSPACE_N_GENES >= domain_adata.n_vars:
+                    bayesspace_genes = domain_adata.var_names.tolist()
+                else:
+                    bayesspace_genes = domain_hvg_table.head(
+                        min(BAYESSPACE_N_GENES, len(domain_hvg_table))
+                    ).index.tolist()
                 bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
                 bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
-            assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
-            counts_for_r = bayesspace_raw.X.T
-            if sp.issparse(counts_for_r):
-                counts_for_r = counts_for_r.tocsc()
-            else:
-                counts_for_r = sp.csc_matrix(counts_for_r)
+                if np.any(bayesspace_spot_counts <= 0):
+                    print("BayesSpace subset에 zero-count bin이 있어 전체 gene set으로 다시 준비합니다.")
+                    bayesspace_genes = domain_adata.var_names.tolist()
+                    bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
+                    bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
+                assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
+                counts_for_r = bayesspace_raw.X.T
+                if sp.issparse(counts_for_r):
+                    counts_for_r = counts_for_r.tocsc()
+                else:
+                    counts_for_r = sp.csc_matrix(counts_for_r)
 
-            sio.mmwrite(bayesspace_dir / "counts.mtx", counts_for_r)
-            pd.DataFrame({"gene": bayesspace_genes}).to_csv(
-                bayesspace_dir / "genes.csv",
-                index=False,
-            )
-            pd.DataFrame({
-                "barcode": bayesspace_raw.obs_names,
-                "array_row": bayesspace_raw.obs["array_row"].to_numpy(dtype=int),
-                "array_col": bayesspace_raw.obs["array_col"].to_numpy(dtype=int),
-            }).to_csv(bayesspace_dir / "spots.csv", index=False)
-
-            bayesspace_script = bayesspace_dir / "run_bayesspace.R"
-            bayesspace_script.write_text(
-                '''
-                suppressPackageStartupMessages({
-                  library(Matrix)
-                  library(SingleCellExperiment)
-                  library(BayesSpace)
-                })
-                args <- commandArgs(trailingOnly=TRUE)
-                input_dir <- args[[1]]
-                q <- as.integer(args[[2]])
-                d <- as.integer(args[[3]])
-                nrep <- as.integer(args[[4]])
-                burnin <- as.integer(args[[5]])
-
-                counts <- readMM(file.path(input_dir, "counts.mtx"))
-                genes <- read.csv(file.path(input_dir, "genes.csv"), stringsAsFactors=FALSE)$gene
-                spots <- read.csv(file.path(input_dir, "spots.csv"), stringsAsFactors=FALSE)
-
-                rownames(counts) <- make.unique(genes)
-                colnames(counts) <- spots$barcode
-                sce <- SingleCellExperiment(assays=list(counts=as(counts, "CsparseMatrix")))
-                colData(sce)$array_row <- as.integer(spots$array_row)
-                colData(sce)$array_col <- as.integer(spots$array_col)
-
-                set.seed(7)
-                sce <- spatialPreprocess(
-                  sce,
-                  platform="VisiumHD",
-                  n.PCs=d,
-                  n.HVGs=min(2000, nrow(sce)),
-                  log.normalize=TRUE
+                sio.mmwrite(bayesspace_dir / "counts.mtx", counts_for_r)
+                pd.DataFrame({"gene": bayesspace_genes}).to_csv(
+                    bayesspace_dir / "genes.csv",
+                    index=False,
                 )
-                set.seed(7)
-                sce <- spatialCluster(
-                  sce,
-                  q=q,
-                  platform="VisiumHD",
-                  d=d,
-                  init.method="kmeans",
-                  model="t",
-                  gamma=2,
-                  nrep=nrep,
-                  burn.in=burnin,
-                  save.chain=FALSE
+                pd.DataFrame({
+                    "barcode": bayesspace_raw.obs_names,
+                    "array_row": bayesspace_raw.obs["array_row"].to_numpy(dtype=int),
+                    "array_col": bayesspace_raw.obs["array_col"].to_numpy(dtype=int),
+                }).to_csv(bayesspace_dir / "spots.csv", index=False)
+
+                bayesspace_script = bayesspace_dir / "run_bayesspace.R"
+                bayesspace_script.write_text(
+                    '''
+                    suppressPackageStartupMessages({
+                      library(Matrix)
+                      library(SingleCellExperiment)
+                      library(BayesSpace)
+                    })
+                    args <- commandArgs(trailingOnly=TRUE)
+                    input_dir <- args[[1]]
+                    q <- as.integer(args[[2]])
+                    d <- as.integer(args[[3]])
+                    nrep <- as.integer(args[[4]])
+                    burnin <- as.integer(args[[5]])
+
+                    counts <- readMM(file.path(input_dir, "counts.mtx"))
+                    genes <- read.csv(file.path(input_dir, "genes.csv"), stringsAsFactors=FALSE)$gene
+                    spots <- read.csv(file.path(input_dir, "spots.csv"), stringsAsFactors=FALSE)
+
+                    rownames(counts) <- make.unique(genes)
+                    colnames(counts) <- spots$barcode
+                    sce <- SingleCellExperiment(assays=list(counts=as(counts, "CsparseMatrix")))
+                    colData(sce)$array_row <- as.integer(spots$array_row)
+                    colData(sce)$array_col <- as.integer(spots$array_col)
+
+                    set.seed(7)
+                    sce <- spatialPreprocess(
+                      sce,
+                      platform="VisiumHD",
+                      n.PCs=d,
+                      n.HVGs=min(2000, nrow(sce)),
+                      log.normalize=TRUE
+                    )
+                    set.seed(7)
+                    sce <- spatialCluster(
+                      sce,
+                      q=q,
+                      platform="VisiumHD",
+                      d=d,
+                      init.method="kmeans",
+                      model="t",
+                      gamma=2,
+                      nrep=nrep,
+                      burn.in=burnin,
+                      save.chain=FALSE
+                    )
+                    out <- data.frame(
+                      barcode=colnames(sce),
+                      bayesspace_domain=as.character(colData(sce)$spatial.cluster)
+                    )
+                    write.csv(out, file.path(input_dir, "bayesspace_labels.csv"), row.names=FALSE)
+                    '''
                 )
-                out <- data.frame(
-                  barcode=colnames(sce),
-                  bayesspace_domain=as.character(colData(sce)$spatial.cluster)
+
+                bayesspace_run = subprocess.run(
+                    [
+                        "Rscript",
+                        str(bayesspace_script),
+                        str(bayesspace_dir),
+                        str(BAYESSPACE_Q),
+                        str(BAYESSPACE_D),
+                        str(BAYESSPACE_NREP),
+                        str(BAYESSPACE_BURNIN),
+                    ],
+                    capture_output=True,
+                    text=True,
                 )
-                write.csv(out, file.path(input_dir, "bayesspace_labels.csv"), row.names=FALSE)
-                '''
-            )
+                bayesspace_log = (bayesspace_run.stdout + "\\n" + bayesspace_run.stderr).splitlines()
+                print("\\n".join(bayesspace_log[-8:]))
+                assert bayesspace_run.returncode == 0, "BayesSpace 실행이 실패했습니다."
 
-            bayesspace_run = subprocess.run(
-                [
-                    "Rscript",
-                    str(bayesspace_script),
-                    str(bayesspace_dir),
-                    str(BAYESSPACE_Q),
-                    str(BAYESSPACE_D),
-                    str(BAYESSPACE_NREP),
-                    str(BAYESSPACE_BURNIN),
-                ],
-                capture_output=True,
-                text=True,
-            )
-            bayesspace_log = (bayesspace_run.stdout + "\\n" + bayesspace_run.stderr).splitlines()
-            print("\\n".join(bayesspace_log[-8:]))
-            assert bayesspace_run.returncode == 0, "BayesSpace 실행이 실패했습니다."
+                bayesspace_labels = pd.read_csv(
+                    bayesspace_dir / "bayesspace_labels.csv"
+                ).set_index("barcode")
+                domain_adata.obs["bayesspace_domain"] = pd.Categorical(
+                    bayesspace_labels.loc[domain_adata.obs_names, "bayesspace_domain"].astype(str).to_numpy()
+                )
 
-            bayesspace_labels = pd.read_csv(
-                bayesspace_dir / "bayesspace_labels.csv"
-            ).set_index("barcode")
-            domain_adata.obs["bayesspace_domain"] = pd.Categorical(
-                bayesspace_labels.loc[domain_adata.obs_names, "bayesspace_domain"].astype(str).to_numpy()
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("q:", BAYESSPACE_Q)
             print("clusters:", domain_adata.obs["bayesspace_domain"].nunique())
             """
@@ -1194,43 +1035,38 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "domain_spagcn"
-            start = time.perf_counter()
+            with timed_stage("domain_spagcn", STAGE_TIMES):
+                spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
+                if sp.issparse(spagcn_adata.X):
+                    spagcn_adata.X = spagcn_adata.X.toarray().astype(np.float32)
 
-            spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
-            if sp.issparse(spagcn_adata.X):
-                spagcn_adata.X = spagcn_adata.X.toarray().astype(np.float32)
+                spagcn_adj = SpaGCN.calculate_adj_matrix(
+                    x=domain_coords[:, 0].tolist(),
+                    y=domain_coords[:, 1].tolist(),
+                    histology=False,
+                )
+                spagcn_l = SpaGCN.search_l(0.5, spagcn_adj, start=0.01, end=1000, tol=0.01, max_run=40)
+                if spagcn_l is None:
+                    positive_distances = spagcn_adj[spagcn_adj > 0]
+                    spagcn_l = float(np.median(positive_distances))
 
-            spagcn_adj = SpaGCN.calculate_adj_matrix(
-                x=domain_coords[:, 0].tolist(),
-                y=domain_coords[:, 1].tolist(),
-                histology=False,
-            )
-            spagcn_l = SpaGCN.search_l(0.5, spagcn_adj, start=0.01, end=1000, tol=0.01, max_run=40)
-            if spagcn_l is None:
-                positive_distances = spagcn_adj[spagcn_adj > 0]
-                spagcn_l = float(np.median(positive_distances))
+                spagcn_model = SpaGCN.SpaGCN()
+                spagcn_model.set_l(spagcn_l)
+                spagcn_model.train(
+                    spagcn_adata,
+                    spagcn_adj,
+                    num_pcs=min(30, spagcn_adata.n_vars - 1, spagcn_adata.n_obs - 1),
+                    lr=0.01,
+                    max_epochs=120,
+                    init_spa=True,
+                    init="louvain",
+                    n_neighbors=10,
+                    res=0.4,
+                    tol=0.005,
+                )
+                spagcn_labels, spagcn_prob = spagcn_model.predict()
+                domain_adata.obs["spagcn_domain"] = pd.Categorical(spagcn_labels.astype(str))
 
-            spagcn_model = SpaGCN.SpaGCN()
-            spagcn_model.set_l(spagcn_l)
-            spagcn_model.train(
-                spagcn_adata,
-                spagcn_adj,
-                num_pcs=min(30, spagcn_adata.n_vars - 1, spagcn_adata.n_obs - 1),
-                lr=0.01,
-                max_epochs=120,
-                init_spa=True,
-                init="louvain",
-                n_neighbors=10,
-                res=0.4,
-                tol=0.005,
-            )
-            spagcn_labels, spagcn_prob = spagcn_model.predict()
-            domain_adata.obs["spagcn_domain"] = pd.Categorical(spagcn_labels.astype(str))
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(f"SpaGCN l: {spagcn_l:.4f}")
             print("clusters:", domain_adata.obs["spagcn_domain"].nunique())
             """
@@ -1247,51 +1083,20 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "summarize_spatial_domain_methods"
-            start = time.perf_counter()
+            with timed_stage("summarize_spatial_domain_methods", STAGE_TIMES):
+                domain_methods = {
+                    "expression_domain": "Expression baseline",
+                    "squidpy_spatial_domain": "Squidpy spatial graph",
+                    "banksy_domain": "BANKSY",
+                    "bayesspace_domain": "BayesSpace",
+                    "spagcn_domain": "SpaGCN",
+                }
 
-            domain_methods = {
-                "expression_domain": "Expression baseline",
-                "squidpy_spatial_domain": "Squidpy spatial graph",
-                "banksy_domain": "BANKSY",
-                "bayesspace_domain": "BayesSpace",
-                "spagcn_domain": "SpaGCN",
-            }
+                domain_count_table = make_domain_count_table(domain_adata, domain_methods)
+                domain_ari_table = make_domain_ari_table(domain_adata, domain_methods)
+                domain_count_table.to_csv(OUTPUT_DIR / "spatial_domain_counts.csv", index=False)
+                domain_ari_table.to_csv(OUTPUT_DIR / "spatial_domain_ari.csv", index=False)
 
-            count_tables = []
-            for key, label in domain_methods.items():
-                one = (
-                    domain_adata.obs[key]
-                    .value_counts()
-                    .sort_index()
-                    .rename_axis("domain")
-                    .reset_index(name="n_bins")
-                )
-                one.insert(0, "method", label)
-                count_tables.append(one)
-            domain_count_table = pd.concat(count_tables, ignore_index=True)
-
-            ari_rows = []
-            method_items = list(domain_methods.items())
-            for i in range(len(method_items)):
-                for j in range(i + 1, len(method_items)):
-                    key_a, label_a = method_items[i]
-                    key_b, label_b = method_items[j]
-                    ari_rows.append({
-                        "method_a": label_a,
-                        "method_b": label_b,
-                        "adjusted_rand_index": adjusted_rand_score(
-                            domain_adata.obs[key_a].astype(str),
-                            domain_adata.obs[key_b].astype(str),
-                        ),
-                    })
-            domain_ari_table = pd.DataFrame(ari_rows)
-            domain_count_table.to_csv(OUTPUT_DIR / "spatial_domain_counts.csv", index=False)
-            domain_ari_table.to_csv(OUTPUT_DIR / "spatial_domain_ari.csv", index=False)
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(domain_count_table)
             display(domain_ari_table)
             """
@@ -1306,30 +1111,24 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "plot_spatial_domain_maps"
-            start = time.perf_counter()
-
-            fig, axes = plt.subplots(1, len(domain_methods), figsize=(4.0 * len(domain_methods), 3.8), constrained_layout=True)
-            for ax, (key, label) in zip(axes, domain_methods.items()):
-                codes = domain_adata.obs[key].astype("category").cat.codes.to_numpy()
-                ax.scatter(
-                    domain_coords[:, 0],
-                    domain_coords[:, 1],
-                    s=5,
-                    c=codes,
-                    cmap="tab20",
-                    rasterized=True,
+            with timed_stage("plot_spatial_domain_maps", STAGE_TIMES):
+                fig, axes = plt.subplots(
+                    1,
+                    len(domain_methods),
+                    figsize=(4.0 * len(domain_methods), 3.8),
+                    constrained_layout=True,
                 )
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-                ax.set_title(label)
-                ax.set_xticks([])
-                ax.set_yticks([])
-            plt.show()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+                for ax, (key, label) in zip(axes, domain_methods.items()):
+                    codes = domain_adata.obs[key].astype("category").cat.codes.to_numpy()
+                    spatial_scatter(
+                        ax,
+                        domain_coords,
+                        values=codes,
+                        title=label,
+                        size=5,
+                        cmap="tab20",
+                    )
+                plt.show()
             """
         ),
         md(
@@ -1342,29 +1141,24 @@ def domain_cells() -> list:
         ),
         code(
             """
-            stage = "banksy_domain_markers"
-            start = time.perf_counter()
+            with timed_stage("banksy_domain_markers", STAGE_TIMES):
+                sc.tl.rank_genes_groups(
+                    domain_adata,
+                    groupby="banksy_domain",
+                    layer="log_norm",
+                    use_raw=False,
+                    method="t-test_overestim_var",
+                    key_added="banksy_domain_markers",
+                )
+                marker_df = sc.get.rank_genes_groups_df(
+                    domain_adata,
+                    group=None,
+                    key="banksy_domain_markers",
+                )
+                marker_df = marker_df.sort_values(["group", "scores"], ascending=[True, False])
+                marker_df = marker_df.groupby("group", as_index=False).head(5)
+                marker_df = marker_df[["group", "names", "scores", "logfoldchanges", "pvals_adj"]]
 
-            sc.tl.rank_genes_groups(
-                domain_adata,
-                groupby="banksy_domain",
-                layer="log_norm",
-                use_raw=False,
-                method="t-test_overestim_var",
-                key_added="banksy_domain_markers",
-            )
-            marker_df = sc.get.rank_genes_groups_df(
-                domain_adata,
-                group=None,
-                key="banksy_domain_markers",
-            )
-            marker_df = marker_df.sort_values(["group", "scores"], ascending=[True, False])
-            marker_df = marker_df.groupby("group", as_index=False).head(5)
-            marker_df = marker_df[["group", "names", "scores", "logfoldchanges", "pvals_adj"]]
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(marker_df)
             """
         ),
@@ -1384,45 +1178,45 @@ def cci_cells() -> list:
             발현만으로 ligand-receptor pair를 찾으면 멀리 떨어진 영역 사이의 신호도
             후보로 올라올 수 있습니다. 공간 정보를 같이 보면 “발현도 있고, 실제로
             가까이도 있는가”를 함께 확인할 수 있습니다.
+
+            여기서는 두 단계를 분리합니다. 먼저 neighborhood enrichment로 어떤
+            domain 쌍이 실제로 자주 붙어 있는지 보고, 그 다음 `ligrec` 결과에서
+            그 접촉을 설명할 만한 ligand-receptor pair를 찾습니다.
             """
         ),
         code(
             """
-            stage = "cci_neighborhood_enrichment"
-            start = time.perf_counter()
+            with timed_stage("cci_neighborhood_enrichment", STAGE_TIMES):
+                CCI_CLUSTER_KEY = "banksy_domain"
+                domain_adata.obs[CCI_CLUSTER_KEY] = domain_adata.obs[CCI_CLUSTER_KEY].astype("category")
+                categories = domain_adata.obs[CCI_CLUSTER_KEY].cat.categories
 
-            CCI_CLUSTER_KEY = "banksy_domain"
-            domain_adata.obs[CCI_CLUSTER_KEY] = domain_adata.obs[CCI_CLUSTER_KEY].astype("category")
-            categories = domain_adata.obs[CCI_CLUSTER_KEY].cat.categories
+                nhood_zscore, nhood_count = sq.gr.nhood_enrichment(
+                    domain_adata,
+                    cluster_key=CCI_CLUSTER_KEY,
+                    n_perms=50,
+                    numba_parallel=False,
+                    seed=7,
+                    copy=True,
+                    n_jobs=N_JOBS,
+                    backend="loky",
+                    show_progress_bar=False,
+                )
 
-            nhood_zscore, nhood_count = sq.gr.nhood_enrichment(
-                domain_adata,
-                cluster_key=CCI_CLUSTER_KEY,
-                n_perms=50,
-                numba_parallel=False,
-                seed=7,
-                copy=True,
-                n_jobs=N_JOBS,
-                backend="loky",
-                show_progress_bar=False,
-            )
+                nhood_zscore_df = pd.DataFrame(nhood_zscore, index=categories, columns=categories)
+                nhood_count_df = pd.DataFrame(nhood_count, index=categories, columns=categories)
 
-            nhood_zscore_df = pd.DataFrame(nhood_zscore, index=categories, columns=categories)
-            nhood_count_df = pd.DataFrame(nhood_count, index=categories, columns=categories)
+                fig, ax = plt.subplots(figsize=(5.2, 4.6))
+                zscore_limit = np.nanmax(abs(nhood_zscore_df.to_numpy()))
+                im = ax.imshow(nhood_zscore_df.to_numpy(), cmap="vlag", vmin=-zscore_limit, vmax=zscore_limit)
+                ax.set_xticks(np.arange(len(categories)))
+                ax.set_xticklabels(categories, rotation=45, ha="right")
+                ax.set_yticks(np.arange(len(categories)))
+                ax.set_yticklabels(categories)
+                ax.set_title("Neighborhood enrichment z-score")
+                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                plt.show()
 
-            fig, ax = plt.subplots(figsize=(5.2, 4.6))
-            im = ax.imshow(nhood_zscore_df.to_numpy(), cmap="vlag", vmin=-np.nanmax(abs(nhood_zscore_df.to_numpy())), vmax=np.nanmax(abs(nhood_zscore_df.to_numpy())))
-            ax.set_xticks(np.arange(len(categories)))
-            ax.set_xticklabels(categories, rotation=45, ha="right")
-            ax.set_yticks(np.arange(len(categories)))
-            ax.set_yticklabels(categories)
-            ax.set_title("Neighborhood enrichment z-score")
-            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            plt.show()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(nhood_zscore_df.round(2))
             """
         ),
@@ -1439,37 +1233,32 @@ def cci_cells() -> list:
         ),
         code(
             """
-            stage = "cci_ligrec"
-            start = time.perf_counter()
+            with timed_stage("cci_ligrec", STAGE_TIMES):
+                LR_CANDIDATES = pd.DataFrame({
+                    "source": ["SPP1", "MIF", "CD74", "COL1A1", "COL1A2", "FN1", "LAMB1", "JAG1", "APOE", "LGALS3", "TGFBI"],
+                    "target": ["CD44", "CD74", "MIF", "ITGB1", "ITGB1", "ITGA5", "ITGB1", "NOTCH1", "LRP1", "ITGB1", "ITGB5"],
+                })
 
-            LR_CANDIDATES = pd.DataFrame({
-                "source": ["SPP1", "MIF", "CD74", "COL1A1", "COL1A2", "FN1", "LAMB1", "JAG1", "APOE", "LGALS3", "TGFBI"],
-                "target": ["CD44", "CD74", "MIF", "ITGB1", "ITGB1", "ITGA5", "ITGB1", "NOTCH1", "LRP1", "ITGB1", "ITGB5"],
-            })
+                ligrec_interactions = LR_CANDIDATES[
+                    LR_CANDIDATES["source"].isin(domain_adata.var_names)
+                    & LR_CANDIDATES["target"].isin(domain_adata.var_names)
+                ].copy()
+                assert len(ligrec_interactions) > 0, "현재 gene set에서 사용할 수 있는 LR 후보가 없습니다."
 
-            ligrec_interactions = LR_CANDIDATES[
-                LR_CANDIDATES["source"].isin(domain_adata.var_names)
-                & LR_CANDIDATES["target"].isin(domain_adata.var_names)
-            ].copy()
-            assert len(ligrec_interactions) > 0, "현재 gene set에서 사용할 수 있는 LR 후보가 없습니다."
+                ligrec_result = sq.gr.ligrec(
+                    domain_adata,
+                    cluster_key=CCI_CLUSTER_KEY,
+                    interactions=ligrec_interactions,
+                    use_raw=False,
+                    copy=True,
+                    threshold=0.0,
+                    n_perms=20,
+                    n_jobs=N_JOBS,
+                    numba_parallel=False,
+                    seed=7,
+                    corr_method=None,
+                )
 
-            ligrec_result = sq.gr.ligrec(
-                domain_adata,
-                cluster_key=CCI_CLUSTER_KEY,
-                interactions=ligrec_interactions,
-                use_raw=False,
-                copy=True,
-                threshold=0.0,
-                n_perms=20,
-                n_jobs=N_JOBS,
-                numba_parallel=False,
-                seed=7,
-                corr_method=None,
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(ligrec_interactions)
             """
         ),
@@ -1484,55 +1273,11 @@ def cci_cells() -> list:
         ),
         code(
             """
-            stage = "cci_ligrec_table"
-            start = time.perf_counter()
+            with timed_stage("cci_ligrec_table", STAGE_TIMES):
+                ligrec_table = tidy_ligrec_result(ligrec_result)
+                ligrec_display = ligrec_table.head(20)
 
-            means = ligrec_result["means"].copy()
-            pvalues = ligrec_result["pvalues"].copy()
-
-            row_names = []
-            for i, name in enumerate(means.index.names):
-                row_names.append(name if name is not None else f"row_{i}")
-            means.index.names = row_names
-            pvalues.index.names = row_names
-
-            if means.columns.nlevels == 2:
-                means.columns.names = ["sender_cluster", "receiver_cluster"]
-                pvalues.columns.names = ["sender_cluster", "receiver_cluster"]
-                means_table = means.stack(["sender_cluster", "receiver_cluster"], dropna=False)
-                pvalue_table = pvalues.stack(["sender_cluster", "receiver_cluster"], dropna=False)
-            else:
-                means.columns.name = "cluster_pair"
-                pvalues.columns.name = "cluster_pair"
-                means_table = means.stack(dropna=False)
-                pvalue_table = pvalues.stack(dropna=False)
-
-            ligrec_means = means_table.rename("mean_expression").reset_index()
-            ligrec_pvalues = pvalue_table.rename("pvalue").reset_index()
-
-            merge_columns = [col for col in ligrec_means.columns if col != "mean_expression"]
-            ligrec_table = ligrec_means.merge(ligrec_pvalues, on=merge_columns, how="left")
-            ligrec_table = ligrec_table.replace([np.inf, -np.inf], np.nan)
-            ligrec_table = ligrec_table.dropna(subset=["mean_expression"])
-
-            if "source" in ligrec_table.columns and "target" in ligrec_table.columns:
-                ligrec_table["pair"] = (
-                    ligrec_table["source"].astype(str) + "-" + ligrec_table["target"].astype(str)
-                )
-            else:
-                ligrec_table["pair"] = ligrec_table.iloc[:, 0].astype(str)
-
-            ligrec_table["pvalue_sort"] = ligrec_table["pvalue"].fillna(1.0)
-            ligrec_table = ligrec_table.sort_values(
-                ["pvalue_sort", "mean_expression"],
-                ascending=[True, False],
-            )
-            ligrec_display = ligrec_table.drop(columns=["pvalue_sort"])
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
-            display(ligrec_display.head(20))
+            display(ligrec_display)
             """
         ),
         md(
@@ -1544,32 +1289,27 @@ def cci_cells() -> list:
         ),
         code(
             """
-            stage = "cci_ligrec_heatmap"
-            start = time.perf_counter()
+            with timed_stage("cci_ligrec_heatmap", STAGE_TIMES):
+                top_pair = ligrec_table.iloc[0]["pair"]
+                pair_df = ligrec_table[ligrec_table["pair"] == top_pair].copy()
+                heatmap_table = pair_df.pivot_table(
+                    index="sender_cluster",
+                    columns="receiver_cluster",
+                    values="mean_expression",
+                    aggfunc="mean",
+                    fill_value=0,
+                )
 
-            top_pair = ligrec_table.iloc[0]["pair"]
-            pair_df = ligrec_table[ligrec_table["pair"] == top_pair].copy()
-            heatmap_table = pair_df.pivot_table(
-                index="sender_cluster",
-                columns="receiver_cluster",
-                values="mean_expression",
-                aggfunc="mean",
-                fill_value=0,
-            )
+                fig, ax = plt.subplots(figsize=(5.6, 4.8))
+                im = ax.imshow(heatmap_table.to_numpy(), cmap="magma")
+                ax.set_xticks(np.arange(heatmap_table.shape[1]))
+                ax.set_xticklabels(heatmap_table.columns, rotation=45, ha="right")
+                ax.set_yticks(np.arange(heatmap_table.shape[0]))
+                ax.set_yticklabels(heatmap_table.index)
+                ax.set_title(f"{top_pair}: ligrec mean")
+                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                plt.show()
 
-            fig, ax = plt.subplots(figsize=(5.6, 4.8))
-            im = ax.imshow(heatmap_table.to_numpy(), cmap="magma")
-            ax.set_xticks(np.arange(heatmap_table.shape[1]))
-            ax.set_xticklabels(heatmap_table.columns, rotation=45, ha="right")
-            ax.set_yticks(np.arange(heatmap_table.shape[0]))
-            ax.set_yticklabels(heatmap_table.index)
-            ax.set_title(f"{top_pair}: ligrec mean")
-            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            plt.show()
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(heatmap_table)
             """
         ),
@@ -1589,6 +1329,10 @@ def spix_cells() -> list:
             순서는 P2 재현 코드와 맞춰 `embedding -> smoothing -> equalization ->
             image cache -> multiscale segmentation -> scale별 SVG`로 둡니다.
             smoothing과 equalization은 직접 숫자를 찍어 넣지 않고 sweep으로 고릅니다.
+
+            앞에서 8 um로 낮춘 이유는 표준 도구들이 안정적으로 돌아가게 하기 위한
+            선택이었습니다. SPIX는 반대로 native 2 um 정보를 보존한 채 여러 scale의
+            tissue unit을 만들기 때문에, 여기서는 1M개의 2 um bin 전체를 사용합니다.
             """
         ),
         code(
@@ -1625,27 +1369,22 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_generate_embeddings"
-            start = time.perf_counter()
+            with timed_stage("spix_generate_embeddings", STAGE_TIMES):
+                spix_adata = adata_2um.copy()
+                spix_adata = SPIX.tm.generate_embeddings(
+                    spix_adata,
+                    dim_reduction="PCA",
+                    normalization="log_norm",
+                    n_jobs=N_JOBS,
+                    dimensions=SPIX_EMBEDDING_DIMS,
+                    nfeatures=min(2000, spix_adata.n_vars),
+                    force=True,
+                    use_coords_as_tiles=True,
+                    coords_rescale_to_nn=False,
+                    coords_max_gap_factor=None,
+                    raster_random_seed=42,
+                )
 
-            spix_adata = adata_2um.copy()
-            spix_adata = SPIX.tm.generate_embeddings(
-                spix_adata,
-                dim_reduction="PCA",
-                normalization="log_norm",
-                n_jobs=N_JOBS,
-                dimensions=SPIX_EMBEDDING_DIMS,
-                nfeatures=min(2000, spix_adata.n_vars),
-                force=True,
-                use_coords_as_tiles=True,
-                coords_rescale_to_nn=False,
-                coords_max_gap_factor=None,
-                raster_random_seed=42,
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("X_embedding:", spix_adata.obsm["X_embedding"].shape)
             """
         ),
@@ -1663,67 +1402,57 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_smoothing_selection"
-            start = time.perf_counter()
-
-            if SPIX_RUN_TUNING:
-                smoothing_selection = SPIX.ip.evaluate_smoothing_sweep(
-                    spix_adata,
-                    embedding="X_embedding",
-                    methods=["graph"],
-                    approx_mode="grid",
-                    approx_target_n=2_000_000,
-                    approx_max_bins=2_000_000,
-                    graph_k_grid=[1, 3, 5, 10, 15, 20, 25, 30],
-                    graph_t_grid=[1, 2, 3, 4, 6, 8, 10, 30, 50],
-                    candidate_jobs=N_JOBS,
-                    verbose=True,
-                )
-                smooth_params = dict(smoothing_selection["recommendation"]["params"])
-            else:
-                smooth_params = {"graph_k": 20, "graph_t": 10}
-                smoothing_selection = {
-                    "recommendation": {
-                        "params": smooth_params,
-                        "source": "manual fallback for rehearsal only",
+            with timed_stage("spix_smoothing_selection", STAGE_TIMES):
+                if SPIX_RUN_TUNING:
+                    smoothing_selection = SPIX.ip.evaluate_smoothing_sweep(
+                        spix_adata,
+                        embedding="X_embedding",
+                        methods=["graph"],
+                        approx_mode="grid",
+                        approx_target_n=2_000_000,
+                        approx_max_bins=2_000_000,
+                        graph_k_grid=[1, 3, 5, 10, 15, 20, 25, 30],
+                        graph_t_grid=[1, 2, 3, 4, 6, 8, 10, 30, 50],
+                        candidate_jobs=N_JOBS,
+                        verbose=True,
+                    )
+                    smooth_params = dict(smoothing_selection["recommendation"]["params"])
+                else:
+                    smooth_params = {"graph_k": 20, "graph_t": 10}
+                    smoothing_selection = {
+                        "recommendation": {
+                            "params": smooth_params,
+                            "source": "manual fallback for rehearsal only",
+                        }
                     }
-                }
 
-            (OUTPUT_DIR / "spix_smoothing_selection.json").write_text(
-                json.dumps(smoothing_selection, indent=2, default=str)
-            )
+                (OUTPUT_DIR / "spix_smoothing_selection.json").write_text(
+                    json.dumps(smoothing_selection, indent=2, default=str)
+                )
 
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(smooth_params)
             """
         ),
         code(
             """
-            stage = "spix_smooth_image"
-            start = time.perf_counter()
+            with timed_stage("spix_smooth_image", STAGE_TIMES):
+                spix_adata = SPIX.ip.smooth_image(
+                    spix_adata,
+                    methods=["graph"],
+                    embedding="X_embedding",
+                    embedding_dims=SPIX_EMBEDDING_CHANNELS,
+                    output="X_embedding_smooth",
+                    approx_mode="grid",
+                    approx_target_n=2_000_000,
+                    approx_max_bins=2_000_000,
+                    graph_k=int(smooth_params["graph_k"]),
+                    graph_t=int(smooth_params["graph_t"]),
+                    n_jobs=N_JOBS,
+                    backend="threads",
+                    implementation="auto",
+                    rescale_mode="final",
+                )
 
-            spix_adata = SPIX.ip.smooth_image(
-                spix_adata,
-                methods=["graph"],
-                embedding="X_embedding",
-                embedding_dims=SPIX_EMBEDDING_CHANNELS,
-                output="X_embedding_smooth",
-                approx_mode="grid",
-                approx_target_n=2_000_000,
-                approx_max_bins=2_000_000,
-                graph_k=int(smooth_params["graph_k"]),
-                graph_t=int(smooth_params["graph_t"]),
-                n_jobs=N_JOBS,
-                backend="threads",
-                implementation="auto",
-                rescale_mode="final",
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("X_embedding_smooth:", spix_adata.obsm["X_embedding_smooth"].shape)
             """
         ),
@@ -1738,69 +1467,59 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_equalization_selection"
-            start = time.perf_counter()
+            with timed_stage("spix_equalization_selection", STAGE_TIMES):
+                if SPIX_RUN_TUNING:
+                    equalization_selection = SPIX.ip.evaluate_equalization_sweep(
+                        spix_adata,
+                        embedding="X_embedding_smooth",
+                        dimensions=SPIX_EMBEDDING_CHANNELS,
+                        methods=["BalanceSimplest"],
+                        sleft_grid=[0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 3, 4, 5],
+                        sright_grid=[0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 3, 4, 5],
+                        n_jobs=N_JOBS,
+                        verbose=True,
+                    )
+                    equalization_params = dict(equalization_selection["best"])
+                else:
+                    equalization_params = {"sleft": 2.0, "sright": 2.0}
+                    equalization_selection = {
+                        "best": equalization_params,
+                        "source": "manual fallback for rehearsal only",
+                    }
 
-            if SPIX_RUN_TUNING:
-                equalization_selection = SPIX.ip.evaluate_equalization_sweep(
-                    spix_adata,
-                    embedding="X_embedding_smooth",
-                    dimensions=SPIX_EMBEDDING_CHANNELS,
-                    methods=["BalanceSimplest"],
-                    sleft_grid=[0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 3, 4, 5],
-                    sright_grid=[0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 3, 4, 5],
-                    n_jobs=N_JOBS,
-                    verbose=True,
+                (OUTPUT_DIR / "spix_equalization_selection.json").write_text(
+                    json.dumps(equalization_selection, indent=2, default=str)
                 )
-                equalization_params = dict(equalization_selection["best"])
-            else:
-                equalization_params = {"sleft": 2.0, "sright": 2.0}
-                equalization_selection = {
-                    "best": equalization_params,
-                    "source": "manual fallback for rehearsal only",
-                }
 
-            (OUTPUT_DIR / "spix_equalization_selection.json").write_text(
-                json.dumps(equalization_selection, indent=2, default=str)
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print(equalization_params)
             """
         ),
         code(
             """
-            stage = "spix_equalize_and_cache_image"
-            start = time.perf_counter()
+            with timed_stage("spix_equalize_and_cache_image", STAGE_TIMES):
+                spix_adata = SPIX.ip.equalize_image(
+                    spix_adata,
+                    dimensions=SPIX_EMBEDDING_CHANNELS,
+                    embedding="X_embedding_smooth",
+                    sleft=float(equalization_params["sleft"]),
+                    sright=float(equalization_params["sright"]),
+                )
 
-            spix_adata = SPIX.ip.equalize_image(
-                spix_adata,
-                dimensions=SPIX_EMBEDDING_CHANNELS,
-                embedding="X_embedding_smooth",
-                sleft=float(equalization_params["sleft"]),
-                sright=float(equalization_params["sright"]),
-            )
+                SPIX.ip.cache_embedding_image(
+                    spix_adata,
+                    embedding="X_embedding_equalize",
+                    dimensions=SPIX_EMBEDDING_CHANNELS,
+                    key="image_plot_slic",
+                    brighten_continuous=True,
+                    continuous_gamma=0.7,
+                    origin=True,
+                    store="memmap",
+                    memmap_dir=str(SPIX_CACHE_DIR),
+                    cache_namespace=SPIX_CACHE_NAMESPACE,
+                    show=False,
+                    verbose=True,
+                )
 
-            SPIX.ip.cache_embedding_image(
-                spix_adata,
-                embedding="X_embedding_equalize",
-                dimensions=SPIX_EMBEDDING_CHANNELS,
-                key="image_plot_slic",
-                brighten_continuous=True,
-                continuous_gamma=0.7,
-                origin=True,
-                store="memmap",
-                memmap_dir=str(SPIX_CACHE_DIR),
-                cache_namespace=SPIX_CACHE_NAMESPACE,
-                show=False,
-                verbose=True,
-            )
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             print("image cache key: image_plot_slic")
             """
         ),
@@ -1814,36 +1533,31 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_multiscale_segmentation"
-            start = time.perf_counter()
+            with timed_stage("spix_multiscale_segmentation", STAGE_TIMES):
+                segment_index = SPIX.sp.precompute_multiscale_segments(
+                    spix_adata,
+                    resolutions=RESOLUTIONS_UM,
+                    compactness_candidates=[0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5],
+                    dimensions=SPIX_EMBEDDING_CHANNELS,
+                    embedding="X_embedding_equalize",
+                    out_dir=str(SEGMENT_DIR),
+                    pitch_um=PITCH_UM,
+                    max_workers=SPIX_MAX_WORKERS,
+                    cache_kwargs={
+                        "runtime_fill_from_boundary": True,
+                        "runtime_fill_closing_radius": 1,
+                        "runtime_fill_holes": True,
+                        "origin": True,
+                        "store": "memmap",
+                        "memmap_dir": str(SPIX_CACHE_DIR),
+                        "cache_namespace": SPIX_CACHE_NAMESPACE,
+                        "brighten_continuous": True,
+                        "continuous_gamma": 0.7,
+                    },
+                    verbose=True,
+                )
+                segment_index = pd.read_csv(SEGMENT_DIR / "segments_index.csv")
 
-            segment_index = SPIX.sp.precompute_multiscale_segments(
-                spix_adata,
-                resolutions=RESOLUTIONS_UM,
-                compactness_candidates=[0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5],
-                dimensions=SPIX_EMBEDDING_CHANNELS,
-                embedding="X_embedding_equalize",
-                out_dir=str(SEGMENT_DIR),
-                pitch_um=PITCH_UM,
-                max_workers=SPIX_MAX_WORKERS,
-                cache_kwargs={
-                    "runtime_fill_from_boundary": True,
-                    "runtime_fill_closing_radius": 1,
-                    "runtime_fill_holes": True,
-                    "origin": True,
-                    "store": "memmap",
-                    "memmap_dir": str(SPIX_CACHE_DIR),
-                    "cache_namespace": SPIX_CACHE_NAMESPACE,
-                    "brighten_continuous": True,
-                    "continuous_gamma": 0.7,
-                },
-                verbose=True,
-            )
-            segment_index = pd.read_csv(SEGMENT_DIR / "segments_index.csv")
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(segment_index[[
                 "scale_id",
                 "resolution",
@@ -1863,37 +1577,22 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_multiscale_moran_svg"
-            start = time.perf_counter()
+            with timed_stage("spix_multiscale_moran_svg", STAGE_TIMES):
+                spix_rank_df, spix_score_df = SPIX.an.multiscale_moran_ranks(
+                    spix_adata,
+                    segments_index_csv=str(SEGMENT_DIR / "segments_index.csv"),
+                    out_csv=str(SEGMENT_DIR / "multiscale_moran_ranks.csv"),
+                    out_score_csv=str(SEGMENT_DIR / "multiscale_moran_scores.csv"),
+                    engine="fast",
+                    backend="threads",
+                    n_jobs=N_JOBS,
+                    threads_per_process=1,
+                    moran_thresh=-1.0,
+                    return_scores=True,
+                    quiet=False,
+                )
+                spix_top_svg_table = top_rank_table(spix_rank_df, top_n=5)
 
-            spix_rank_df, spix_score_df = SPIX.an.multiscale_moran_ranks(
-                spix_adata,
-                segments_index_csv=str(SEGMENT_DIR / "segments_index.csv"),
-                out_csv=str(SEGMENT_DIR / "multiscale_moran_ranks.csv"),
-                out_score_csv=str(SEGMENT_DIR / "multiscale_moran_scores.csv"),
-                engine="fast",
-                backend="threads",
-                n_jobs=N_JOBS,
-                threads_per_process=1,
-                moran_thresh=-1.0,
-                return_scores=True,
-                quiet=False,
-            )
-
-            top_rows = []
-            for column in spix_rank_df.columns:
-                scale_id = column.replace("rank_", "")
-                top_genes = spix_rank_df[column].dropna().sort_values().head(5)
-                top_rows.append(pd.DataFrame({
-                    "scale": scale_id,
-                    "gene": top_genes.index,
-                    "rank": top_genes.values,
-                }))
-            spix_top_svg_table = pd.concat(top_rows, ignore_index=True)
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
             display(spix_top_svg_table)
             """
         ),
@@ -1907,82 +1606,56 @@ def spix_cells() -> list:
         ),
         code(
             """
-            stage = "spix_add_segment_labels"
-            start = time.perf_counter()
-
-            for _, row in segment_index.iterrows():
-                scale_id = str(row["scale_id"])
-                is_native = str(row.get("native_identity", "")).lower() == "true"
-                if is_native or str(row.get("path", "")) == "__native_identity__":
-                    continue
-
-                segment_path = Path(str(row["path"]))
-                if not segment_path.is_absolute():
-                    segment_path = SEGMENT_DIR / segment_path.name
-
-                segment_file = np.load(segment_path, allow_pickle=True)
-                spix_adata.obs[f"spix_{scale_id}"] = pd.Categorical(segment_file["seg_codes"].astype(str))
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+            with timed_stage("spix_add_segment_labels", STAGE_TIMES):
+                add_segment_labels(spix_adata, segment_index, SEGMENT_DIR, prefix="spix_")
             """
         ),
         code(
             """
-            stage = "spix_scale_overview"
-            start = time.perf_counter()
+            with timed_stage("spix_scale_overview", STAGE_TIMES):
+                plot_scales_um = os.environ.get("SPIX_WORKSHOP_SPIX_PLOT_SCALES_UM", "50,100,500")
+                plot_scales_um = [float(x.strip()) for x in plot_scales_um.split(",") if x.strip()]
+                plot_segment_index = segment_index[
+                    segment_index["resolution"].astype(float).isin(plot_scales_um)
+                ].copy()
 
-            plot_scales_um = os.environ.get("SPIX_WORKSHOP_SPIX_PLOT_SCALES_UM", "50,100,500")
-            plot_scales_um = [float(x.strip()) for x in plot_scales_um.split(",") if x.strip()]
-            plot_segment_index = segment_index[
-                segment_index["resolution"].astype(float).isin(plot_scales_um)
-            ].copy()
+                if plot_segment_index.empty:
+                    non_native = segment_index["native_identity"].astype(str).str.lower() != "true"
+                    plot_segment_index = segment_index[non_native].head(3).copy()
 
-            if plot_segment_index.empty:
-                non_native = segment_index["native_identity"].astype(str).str.lower() != "true"
-                plot_segment_index = segment_index[non_native].head(3).copy()
+                spix_plot_idx = sample_indices(spix_adata.n_obs, max_points=140_000, seed=7)
 
-            if spix_adata.n_obs > 140000:
-                rng = np.random.default_rng(7)
-                spix_plot_idx = np.sort(rng.choice(spix_adata.n_obs, size=140000, replace=False))
-            else:
-                spix_plot_idx = np.arange(spix_adata.n_obs)
-
-            fig, axes = plt.subplots(1, len(plot_segment_index), figsize=(4.2 * len(plot_segment_index), 3.8), constrained_layout=True)
-            if len(plot_segment_index) == 1:
-                axes = [axes]
-
-            for ax, (_, row) in zip(axes, plot_segment_index.iterrows()):
-                obs_key = f"spix_{row['scale_id']}"
-                color_codes = spix_adata.obs[obs_key].cat.codes.to_numpy()
-                ax.scatter(
-                    coords_2um[spix_plot_idx, 0],
-                    coords_2um[spix_plot_idx, 1],
-                    s=1.5,
-                    c=color_codes[spix_plot_idx],
-                    cmap="tab20",
-                    rasterized=True,
+                fig, axes = plt.subplots(
+                    1,
+                    len(plot_segment_index),
+                    figsize=(4.2 * len(plot_segment_index), 3.8),
+                    constrained_layout=True,
                 )
-                ax.invert_yaxis()
-                ax.set_aspect("equal")
-                ax.set_title(f"{row['scale_id']} / {int(row['observed_obs_n_segments'])} units")
-                ax.set_xticks([])
-                ax.set_yticks([])
-            plt.show()
+                if len(plot_segment_index) == 1:
+                    axes = [axes]
 
-            spix_scale_summary = segment_index[[
-                "scale_id",
-                "resolution",
-                "observed_obs_n_segments",
-            ]].copy()
-            spix_scale_summary["mean_2um_bins_per_unit"] = (
-                spix_adata.n_obs / spix_scale_summary["observed_obs_n_segments"]
-            )
+                for ax, (_, row) in zip(axes, plot_segment_index.iterrows()):
+                    obs_key = f"spix_{row['scale_id']}"
+                    color_codes = spix_adata.obs[obs_key].cat.codes.to_numpy()
+                    spatial_scatter(
+                        ax,
+                        coords_2um[spix_plot_idx],
+                        values=color_codes[spix_plot_idx],
+                        title=f"{row['scale_id']} / {int(row['observed_obs_n_segments'])} units",
+                        size=1.5,
+                        cmap="tab20",
+                    )
+                plt.show()
 
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-            print(f"[timing] {stage}: {seconds} sec")
+                spix_scale_summary = segment_index[[
+                    "scale_id",
+                    "resolution",
+                    "observed_obs_n_segments",
+                ]].copy()
+                spix_scale_summary["mean_2um_bins_per_unit"] = (
+                    spix_adata.n_obs / spix_scale_summary["observed_obs_n_segments"]
+                )
+
             display(spix_scale_summary)
             """
         ),
@@ -2001,65 +1674,42 @@ def final_cells() -> list:
         ),
         code(
             """
-            stage = "final_report"
-            start = time.perf_counter()
+            with timed_stage("final_report", STAGE_TIMES):
+                runtime_info = runtime_snapshot(N_JOBS)
+                elapsed = round(time.perf_counter() - RUN_STARTED_AT, 2)
+                report = {
+                    "lecture_id": LECTURE_ID,
+                    "topic": "SVG, spatial domain clustering, cell-cell interaction, SPIX",
+                    "validation_passed": True,
+                    "elapsed_seconds": elapsed,
+                    "runtime": runtime_info,
+                    "data_file": str(data_path),
+                    "roi_context_file": str(roi_context_path),
+                    "data_shape_2um": [int(adata_2um.n_obs), int(adata_2um.n_vars)],
+                    "data_shape_8um": [int(adata_8um.n_obs), int(adata_8um.n_vars)],
+                    "spatial_domain_panel_shape": [int(domain_adata.n_obs), int(domain_adata.n_vars)],
+                    "spatial_domain_methods": list(domain_methods.values()),
+                    "spix_shape": [int(spix_adata.n_obs), int(spix_adata.n_vars)],
+                    "stage_times": STAGE_TIMES,
+                    "outputs": {
+                        "output_dir": str(OUTPUT_DIR),
+                        "spatial_domain_counts": str(OUTPUT_DIR / "spatial_domain_counts.csv"),
+                        "spatial_domain_ari": str(OUTPUT_DIR / "spatial_domain_ari.csv"),
+                        "bayesspace_labels": str(OUTPUT_DIR / "bayesspace" / "bayesspace_labels.csv"),
+                        "smoothing_selection": str(OUTPUT_DIR / "spix_smoothing_selection.json"),
+                        "equalization_selection": str(OUTPUT_DIR / "spix_equalization_selection.json"),
+                        "segments_index": str(SEGMENT_DIR / "segments_index.csv"),
+                        "spix_moran_ranks": str(SEGMENT_DIR / "multiscale_moran_ranks.csv"),
+                        "spix_moran_scores": str(SEGMENT_DIR / "multiscale_moran_scores.csv"),
+                    },
+                }
 
-            meminfo = {}
-            if Path("/proc/meminfo").exists():
-                for line in Path("/proc/meminfo").read_text().splitlines():
-                    key, value = line.split(":", 1)
-                    if key in {"MemTotal", "MemAvailable", "SwapTotal", "SwapFree"}:
-                        meminfo[key] = round(float(value.strip().split()[0]) / 1024 / 1024, 2)
+                report_path = OUTPUT_DIR / f"{LECTURE_ID}_timing_report.json"
+                report_path.write_text(json.dumps(report, indent=2, sort_keys=True))
 
-            disk = shutil.disk_usage(Path.cwd())
-            runtime_info = {
-                "running_in_colab": bool(IN_COLAB),
-                "python": sys.version.split()[0],
-                "platform": platform.platform(),
-                "cpu_count": os.cpu_count(),
-                "thread_cap": N_JOBS,
-                "memory_gb": meminfo,
-                "cwd": str(Path.cwd().resolve()),
-                "disk_free_gb": round(disk.free / 1024**3, 2),
-            }
-
-            elapsed = round(time.perf_counter() - RUN_STARTED_AT, 2)
-            report = {
-                "lecture_id": LECTURE_ID,
-                "topic": "SVG, spatial domain clustering, cell-cell interaction, SPIX",
-                "validation_passed": True,
-                "elapsed_seconds": elapsed,
-                "runtime": runtime_info,
-                "data_file": str(data_path),
-                "roi_context_file": str(roi_context_path),
-                "data_shape_2um": [int(adata_2um.n_obs), int(adata_2um.n_vars)],
-                "data_shape_8um": [int(adata_8um.n_obs), int(adata_8um.n_vars)],
-                "spatial_domain_panel_shape": [int(domain_adata.n_obs), int(domain_adata.n_vars)],
-                "spatial_domain_methods": list(domain_methods.values()),
-                "spix_shape": [int(spix_adata.n_obs), int(spix_adata.n_vars)],
-                "stage_times": STAGE_TIMES,
-                "outputs": {
-                    "output_dir": str(OUTPUT_DIR),
-                    "spatial_domain_counts": str(OUTPUT_DIR / "spatial_domain_counts.csv"),
-                    "spatial_domain_ari": str(OUTPUT_DIR / "spatial_domain_ari.csv"),
-                    "bayesspace_labels": str(OUTPUT_DIR / "bayesspace" / "bayesspace_labels.csv"),
-                    "smoothing_selection": str(OUTPUT_DIR / "spix_smoothing_selection.json"),
-                    "equalization_selection": str(OUTPUT_DIR / "spix_equalization_selection.json"),
-                    "segments_index": str(SEGMENT_DIR / "segments_index.csv"),
-                    "spix_moran_ranks": str(SEGMENT_DIR / "multiscale_moran_ranks.csv"),
-                    "spix_moran_scores": str(SEGMENT_DIR / "multiscale_moran_scores.csv"),
-                },
-            }
-
-            report_path = OUTPUT_DIR / f"{LECTURE_ID}_timing_report.json"
-            report_path.write_text(json.dumps(report, indent=2, sort_keys=True))
-
-            seconds = round(time.perf_counter() - start, 2)
-            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
-
-            print("Validation passed")
-            print("Report:", report_path)
-            print(json.dumps(report, indent=2, ensure_ascii=False)[:2000])
+                print("Validation passed")
+                print("Report:", report_path)
+                print(json.dumps(report, indent=2, ensure_ascii=False)[:2000])
 
             if IN_COLAB:
                 try:
@@ -2072,7 +1722,13 @@ def final_cells() -> list:
     ]
 
 
-def combined_notebook(data_url: str, data_sha256: str, roi_context_url: str, roi_context_sha256: str):
+def combined_notebook(
+    data_url: str,
+    data_sha256: str,
+    roi_context_url: str,
+    roi_context_sha256: str,
+    helper_url: str,
+):
     nb = new_notebook(COMBINED_NOTEBOOK)
     nb["cells"] = [
         md(
@@ -2089,6 +1745,9 @@ def combined_notebook(data_url: str, data_sha256: str, roi_context_url: str, roi
 
             앞의 세 파트는 8 um pseudobulk에서 안정적으로 진행하고, 마지막 SPIX
             파트는 2 um ROI 전체를 사용합니다.
+
+            코드는 한 셀에서 한 가지 일만 하도록 나누었습니다. 수업 중에는 표와
+            그림을 먼저 보고, 필요할 때만 코드 안의 파라미터를 확인하면 됩니다.
             """
         ),
         md(
@@ -2102,10 +1761,15 @@ def combined_notebook(data_url: str, data_sha256: str, roi_context_url: str, roi
             실습에서 중요한 것은 “가장 큰 데이터”를 억지로 Colab에 올리는 것이
             아니라, 같은 ROI에서 표준 공간 분석과 SPIX의 multiscale 분석이 어떻게
             이어지는지 끝까지 확인하는 것입니다.
+
+            8M full section은 reference run으로 따로 보는 것이 맞고, 여기서는
+            무료 Colab에서 끝까지 완주할 수 있는 크기로 ROI를 잡았습니다.
             """
         ),
     ]
-    nb["cells"].extend(setup_cells(data_url, data_sha256, roi_context_url, roi_context_sha256))
+    nb["cells"].extend(
+        setup_cells(data_url, data_sha256, roi_context_url, roi_context_sha256, helper_url)
+    )
     nb["cells"].extend(data_cells())
     nb["cells"].extend(eight_um_cells())
     nb["cells"].extend(svg_cells())
@@ -2131,6 +1795,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-url", default=DEFAULT_DATA_URL)
     parser.add_argument("--roi-context-file", default=f"data/{ROI_CONTEXT_FILE}")
     parser.add_argument("--roi-context-url", default=DEFAULT_ROI_CONTEXT_URL)
+    parser.add_argument("--helper-url", default=DEFAULT_HELPER_URL)
     return parser.parse_args()
 
 
@@ -2147,6 +1812,7 @@ def main() -> None:
         data_sha256,
         args.roi_context_url,
         roi_context_sha256,
+        args.helper_url,
     )
     write_notebook(notebook_dir / name, nb)
 

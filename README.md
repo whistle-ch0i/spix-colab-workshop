@@ -24,6 +24,10 @@ Session flow:
 
 The notebook code is intentionally split into short stepwise cells for a
 hands-on class. Most cells can be run from top to bottom without editing.
+Small repeated tasks such as file lookup, checksum checks, stage timing, and
+simple plotting live in `notebooks/workshop_helpers.py`; the analysis calls
+still use the original Scanpy, Squidpy, BANKSY, BayesSpace, SpaGCN, and SPIX
+APIs in the notebook.
 
 A second notebook keeps the broader manuscript mini-reproduction flow:
 

@@ -60,7 +60,7 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
 - Code cells: 36/36 passed.
-- Local elapsed time after dependencies and data were present: 379.53 seconds.
+- Local elapsed time after dependencies and data were present: 390.79 seconds.
 - Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `COL3A1`.
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
@@ -77,9 +77,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
   `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
   `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21.
-- Slowest local stages: SPIX multiscale segmentation 95.95 sec, smoothing
-  sweep 50.41 sec, 8 um preprocessing 46.25 sec, equalization sweep 29.01 sec,
-  SPIX multiscale Moran/SVG 25.20 sec, BayesSpace 25.12 sec.
+- Slowest local stages: smoothing sweep 94.68 sec, SPIX multiscale
+  segmentation 77.17 sec, 8 um preprocessing 45.38 sec, equalization sweep
+  28.50 sec, SPIX multiscale Moran/SVG 27.13 sec, BayesSpace 25.63 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.

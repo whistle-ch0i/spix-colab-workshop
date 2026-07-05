@@ -69,7 +69,7 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 379.53 seconds
+  - local elapsed after dependencies and data were present: 390.79 seconds
   - code cells: 36/36 passed
 - Output checks:
   - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
@@ -79,8 +79,7 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
   - neighborhood enrichment: 50 permutations on BANKSY domains
   - Squidpy `ligrec`: 11 ligand-receptor candidates, 20 permutations,
-    top examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`, and
-    `LGALS3-ITGB1`
+    top examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`
   - BayesSpace input has a zero-count check and falls back to the full
     workshop gene set if an HVG subset would create empty bins
   - SPIX section uses the full `1000000 x 2515` ROI
@@ -95,10 +94,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
     `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
     `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21
-  - slowest local stages: SPIX multiscale segmentation 95.95 sec,
-    smoothing sweep 50.41 sec, 8 um preprocessing 46.25 sec,
-    equalization sweep 29.01 sec, SPIX multiscale Moran/SVG 25.20 sec,
-    BayesSpace 25.12 sec
+  - slowest local stages: smoothing sweep 94.68 sec, SPIX multiscale
+    segmentation 77.17 sec, 8 um preprocessing 45.38 sec, equalization sweep
+    28.50 sec, SPIX multiscale Moran/SVG 27.13 sec, BayesSpace 25.63 sec
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.
