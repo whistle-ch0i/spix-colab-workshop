@@ -111,3 +111,36 @@ Result:
   - multiscale SVG Moran: 7.95 seconds
   - CCI segment-level scoring: 6.89 seconds
   - SPIX embedding/image cache: 6.79 seconds
+
+Observed Colab CPU run, 2026-07-06:
+
+- Runtime snapshot:
+  - `runtime.running_in_colab`: true
+  - Python: `3.12.13`
+  - CPU count: 2
+  - memory total: 12.67 GB
+  - disk free: 87.28 GB
+  - working directory: `/content`
+- Result:
+  - `validation_passed`: true
+  - dataset SHA-256:
+    `5157b0dabb979ef3fdad6110fe447eec8336f2906e3607eb48d8fffcbfe0e585`
+  - dataset shape: `10000 x 2515`
+  - total elapsed: 126.45 seconds
+  - install/import stage: 80.79 seconds
+  - analysis after install/import: 45.66 seconds
+- Stage times:
+  - SPIX embedding/image cache: 29.75 seconds
+  - SPIX multiscale segmentation: 1.67 seconds
+  - spatial clustering: 0.61 seconds
+  - multiscale SVG Moran: 4.49 seconds
+  - cell-state scoring: 0.82 seconds
+  - segment-level spatial LR scoring: 3.89 seconds
+- Output checks:
+  - segment counts: `r48` 1138, `r96` 285, `r192` 68, `r384` 21
+  - SVG rank table: `2515 x 4`
+  - SVG score table: `2515 x 4`
+  - cell-state bins: stromal 2649, immune 1866, ambiguous 1691,
+    epithelial 1539, secretory 1299, proliferation 956
+  - top LR examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`,
+    `COL1A2-ITGB1`, and `FN1-ITGAV`

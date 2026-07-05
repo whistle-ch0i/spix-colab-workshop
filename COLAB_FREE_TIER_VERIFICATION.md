@@ -45,6 +45,45 @@ units, or enterprise allocation.
 - Final segment counts and rank-table shapes are non-empty.
 - Total elapsed runtime is acceptable for the workshop slot.
 
+## Observed Colab CPU Result
+
+Timing report received on 2026-07-06 from
+`notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`.
+
+- Runtime:
+  - `runtime.running_in_colab`: true
+  - Python: `3.12.13`
+  - CPU count: 2
+  - memory total: 12.67 GB
+  - disk free: 87.28 GB
+  - hardware accelerator: not required
+- Data:
+  - shape: `10000 x 2515`
+  - SHA-256:
+    `5157b0dabb979ef3fdad6110fe447eec8336f2906e3607eb48d8fffcbfe0e585`
+- Result:
+  - `validation_passed`: true
+  - total elapsed: 126.45 seconds
+  - install/import: 80.79 seconds
+  - analysis after install/import: 45.66 seconds
+- Main stage timings:
+  - SPIX embedding/image cache: 29.75 seconds
+  - SPIX multiscale segmentation: 1.67 seconds
+  - spatial clustering: 0.61 seconds
+  - multiscale SVG Moran: 4.49 seconds
+  - segment-level spatial LR scoring: 3.89 seconds
+- Output checks:
+  - segment counts: `r48` 1138, `r96` 285, `r192` 68, `r384` 21
+  - SVG rank table: `2515 x 4`
+  - SVG score table: `2515 x 4`
+  - top LR examples include `MIF-CD74`, `CD74-MIF`, and
+    `COL1A1-ITGB1`
+
+This is sufficient evidence that the live workshop path can complete on a
+small Colab CPU runtime. For a strict free-tier claim, the runner should still
+confirm that the Google account had no Pro, Pay As You Go, or enterprise
+allocation active during the run.
+
 ## Local Baseline
 
 The local low-resource smoke run with `N_JOBS=2` completed all 14 code cells
