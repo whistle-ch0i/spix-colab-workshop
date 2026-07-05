@@ -1,0 +1,122 @@
+{
+  "bin_size_um": 16,
+  "file_size_bytes": 10473795,
+  "n_obs": 10000,
+  "n_vars": 2515,
+  "nnz": 4475100,
+  "output": "data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad",
+  "roi_selection": {
+    "candidate_marker_threshold": 5.932245254516602,
+    "center_barcode_index": 81493,
+    "center_col": 237.0,
+    "center_row": 158.0,
+    "entropy": 0.9921396052208798,
+    "group_fraction_log": [
+      0.19716253876686096,
+      0.2107027769088745,
+      0.22232724726200104,
+      0.2276618331670761,
+      0.14214561879634857
+    ],
+    "group_totals": [
+      51452.0,
+      108384.0,
+      205469.0,
+      275564.0,
+      2492.0
+    ],
+    "marker_groups": [
+      "epithelial_tumor",
+      "intestinal_secretory",
+      "immune_inflammatory",
+      "stromal_matrix",
+      "proliferation"
+    ],
+    "mean_marker_counts": 64.33609771728516,
+    "mean_total_counts": 1353.95556640625,
+    "mode": "marker_diverse",
+    "n_candidates": 512,
+    "positive_groups": 5,
+    "present_markers": {
+      "epithelial_tumor": [
+        "EPCAM",
+        "KRT8",
+        "KRT19",
+        "TACSTD2",
+        "CEACAM5"
+      ],
+      "immune_inflammatory": [
+        "PTPRC",
+        "CD74",
+        "IGHA1",
+        "IGHG3",
+        "IGHM",
+        "IGLC1",
+        "LYZ",
+        "SPP1",
+        "CXCL10"
+      ],
+      "intestinal_secretory": [
+        "OLFM4",
+        "REG1A",
+        "REG1B",
+        "REG4",
+        "CLCA4",
+        "MUC2",
+        "TFF3"
+      ],
+      "proliferation": [
+        "MKI67",
+        "TOP2A",
+        "UBE2C",
+        "MCM10",
+        "FOXM1"
+      ],
+      "stromal_matrix": [
+        "COL1A1",
+        "COL1A2",
+        "COL3A1",
+        "DCN",
+        "VIM",
+        "TAGLN",
+        "ACTA2",
+        "FMOD"
+      ]
+    },
+    "score": 5.889037515714592
+  },
+  "seed": 7,
+  "selected_gene_preview": [
+    "SDF4",
+    "INTS11",
+    "MXRA8",
+    "AURKAIP1",
+    "CCNL2",
+    "SSU72",
+    "GNB1",
+    "SKI",
+    "RER1",
+    "TNFRSF14",
+    "VAMP3",
+    "RERE",
+    "ENO1",
+    "CLSTN1",
+    "LZIC",
+    "KIF1B",
+    "SRM",
+    "KIAA2013",
+    "PDPN",
+    "EFHD2"
+  ],
+  "selected_obs_preview": [
+    "s_016um_00111_00233-1",
+    "s_016um_00202_00235-1",
+    "s_016um_00174_00236-1",
+    "s_016um_00140_00201-1",
+    "s_016um_00128_00246-1"
+  ],
+  "selection_mode": "marker_diverse",
+  "source_dataset_url": "https://www.10xgenomics.com/datasets/visium-hd-cytassist-11mm-human-colon-cancer-HE",
+  "source_matrix_h5": "Space Ranger binned_outputs/square_016um/filtered_feature_bc_matrix.h5",
+  "source_positions": "Space Ranger binned_outputs/square_016um/spatial/tissue_positions.parquet"
+}
