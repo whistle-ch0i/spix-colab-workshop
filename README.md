@@ -45,21 +45,22 @@ Cancer dataset analyzed with Space Ranger 4.1.0 and released under CC BY 4.0.
 
 The default practical file is a derived 2 um ROI:
 
-`data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+`data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
-It is a spatially contiguous native-resolution ROI with 500,000 bins and the
+It is a spatially contiguous native-resolution ROI with 1,000,000 bins and the
 same marker-diverse workshop gene set. The full 2 um P2 source has
 `8731400 x 18085` observations/features and is intentionally not used for the
 live exercise.
 
-The notebook builds a `31535 x 2515` 8 um pseudobulk object from this ROI for
+The notebook builds a `62898 x 2515` 8 um pseudobulk object from this ROI for
 SVG, spatial domain, and CCI sections. The spatial domain comparison uses a
 central 3,500-bin 8 um panel so BANKSY, BayesSpace, and SpaGCN stay comfortable
-on a free CPU runtime. The final SPIX section uses the full 500,000-bin 2 um ROI.
+on a free CPU runtime. The final SPIX section uses the full 1,000,000-bin 2 um
+ROI.
 
 The ROI overview plot uses:
 
-`data/visiumhd_p2_roi_context_downsample.csv`
+`data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
 The full P2 object was explicitly probed on 2026-07-06. Under a 12 GiB
 free-tier-style memory cap, the full in-memory read failed before SPIX analysis,
@@ -84,8 +85,8 @@ CONDA_NO_PLUGINS=true \
 NUMBA_CACHE_DIR=/tmp/numba_spix_workshop_build MPLCONFIGDIR=/tmp/mpl_spix_workshop_build \
 conda run --no-capture-output -n SPIX_0426 \
 python scripts/build_visiumhd_2um_roi_from_full_h5ad.py \
-  --max-obs 500000 \
-  --output data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad
+  --max-obs 1000000 \
+  --output data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad
 ```
 
 The legacy 16 um smoke-test file is recreated from Space Ranger outputs:
@@ -142,18 +143,18 @@ python scripts/execute_notebook_code_cells.py \
 ```
 
 The current local check uses the same VisiumHD P2 SPIX path as the manuscript
-workflow, but on the bounded 500k native 2 um ROI. Current numbers are in
+workflow, but on the bounded 1M native 2 um ROI. Current numbers are in
 `VALIDATION.md`.
 
 ## Publish For Colab
 
 The notebook expects this raw data URL:
 
-`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
 It also expects this ROI context URL:
 
-`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
 Before a live run, make sure both files exist at those URLs. If not, set
 `SPIX_WORKSHOP_DATA_URL` and `SPIX_WORKSHOP_ROI_CONTEXT_URL` in the first

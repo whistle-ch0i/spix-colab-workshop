@@ -14,11 +14,11 @@ Colab URL:
 
 Data URL:
 
-`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
 ROI context URL:
 
-`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
 ## Run
 
@@ -53,32 +53,33 @@ or an enterprise runtime.
 
 Observed locally on 2026-07-06 with the combined practical notebook:
 
-- Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
-- 8 um pseudobulk: `31535 x 2515`.
+- Dataset: native 2 um ROI, `1000000 x 2515`, 87.29 MiB.
+- 8 um pseudobulk: `62898 x 2515`.
 - Spatial domain comparison panel: `3500 x 2515`.
 - ROI context SHA-256:
-  `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`.
+  `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
 - Code cells: 36/36 passed.
-- Local elapsed time after dependencies and data were present: 295.73 seconds.
-- Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `JCHAIN`.
+- Local elapsed time after dependencies and data were present: 379.53 seconds.
+- Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `COL3A1`.
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
   BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN.
+- BayesSpace input is checked for zero-count bins before calling R.
 - CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
   20 permutations.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
   equalization, `image_plot_slic` segmentation, and multiscale Moran/SVG.
-- Automatic SPIX smoothing recommendation: `graph_k=5`, `graph_t=30`.
-- Automatic SPIX equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
-  `sright=0.5`.
+- Automatic SPIX smoothing recommendation: `graph_k=3`, `graph_t=30`.
+- Automatic SPIX equalization recommendation: `BalanceSimplest`, `sleft=2.0`,
+  `sright=4.0`.
 - SPIX segment counts:
-  `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
-  `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
-  `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5.
-- Slowest local stages: smoothing sweep 77.27 sec, 8 um preprocessing
-  41.70 sec, SPIX multiscale segmentation 39.86 sec, equalization sweep
-  35.70 sec, BayesSpace 19.03 sec, SPIX multiscale Moran/SVG 13.34 sec.
+  `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
+  `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
+  `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21.
+- Slowest local stages: SPIX multiscale segmentation 95.95 sec, smoothing
+  sweep 50.41 sec, 8 um preprocessing 46.25 sec, equalization sweep 29.01 sec,
+  SPIX multiscale Moran/SVG 25.20 sec, BayesSpace 25.12 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
@@ -97,7 +98,7 @@ Observed on 2026-07-06 with the earlier 16 um practical notebook:
 - Multiscale SVG Moran: 4.49 seconds.
 - Segment-level spatial LR scoring: 3.89 seconds.
 
-For planning the current 500k 2 um notebook, budget about 5-7 minutes for a
+For planning the current 1M 2 um notebook, budget about 6-9 minutes for a
 fresh Colab runtime until a new real Colab timing report is collected.
 
 ## Local Baseline

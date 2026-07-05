@@ -18,15 +18,15 @@ DEFAULT_FULL_H5AD = (
     "figure_reproduction_spix_api_0622/intermediates/visiumhd_p2_crc_2um/full/"
     "visiumhd_p2_crc_2um.full.spix_api_intermediate.h5ad"
 )
-DEFAULT_ROI_H5AD = "data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad"
+DEFAULT_ROI_H5AD = "data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--full-h5ad", default=DEFAULT_FULL_H5AD)
     parser.add_argument("--roi-h5ad", default=DEFAULT_ROI_H5AD)
-    parser.add_argument("--output-csv", default="data/visiumhd_p2_roi_context_downsample.csv")
-    parser.add_argument("--output-json", default="data/visiumhd_p2_roi_context.json")
+    parser.add_argument("--output-csv", default="data/visiumhd_p2_roi_context_1000000_downsample.csv")
+    parser.add_argument("--output-json", default="data/visiumhd_p2_roi_context_1000000.json")
     parser.add_argument("--sample-size", type=int, default=120000)
     parser.add_argument("--seed", type=int, default=7)
     return parser.parse_args()

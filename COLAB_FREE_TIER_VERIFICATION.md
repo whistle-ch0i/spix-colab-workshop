@@ -9,9 +9,9 @@ Official Colab FAQ checked on 2026-07-05:
 
 1. Push the workshop folder and data file to the branch used by the notebook.
 2. Confirm the notebook data URL resolves:
-   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 3. Confirm the ROI context URL resolves:
-   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 4. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
@@ -59,21 +59,21 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Data:
-  - 2 um input shape: `500000 x 2515`
-  - 8 um pseudobulk shape: `31535 x 2515`
+  - 2 um input shape: `1000000 x 2515`
+  - 8 um pseudobulk shape: `62898 x 2515`
   - spatial domain comparison panel: `3500 x 2515`
-  - file size: 42.89 MB
+  - file size: 87.29 MiB
   - SHA-256:
-    `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
+    `abf1f7848397869a1abd7b329d0dd86c9aea80bf87c71e93d727585a4c41802f`
   - ROI context SHA-256:
-    `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`
+    `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 295.73 seconds
+  - local elapsed after dependencies and data were present: 379.53 seconds
   - code cells: 36/36 passed
 - Output checks:
   - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
-    `JCHAIN`
+    `COL3A1`
   - Top 100 HVG/SVG overlap: 3 genes
   - spatial domain methods: expression-only baseline, Squidpy spatial graph,
     BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
@@ -81,21 +81,24 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   - Squidpy `ligrec`: 11 ligand-receptor candidates, 20 permutations,
     top examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`, and
     `LGALS3-ITGB1`
-  - SPIX section uses the full `500000 x 2515` ROI
+  - BayesSpace input has a zero-count check and falls back to the full
+    workshop gene set if an HVG subset would create empty bins
+  - SPIX section uses the full `1000000 x 2515` ROI
   - SPIX follows the VisiumHD P2 manuscript/reproduction path: 30-dimensional
     PCA/log-normalized embedding, graph smoothing before equalization,
     automatic equalization, `image_plot_slic` segmentation, and multiscale
     Moran/SVG
-  - automatic smoothing recommendation: `graph_k=5`, `graph_t=30`
-  - automatic equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
-    `sright=0.5`
+  - automatic smoothing recommendation: `graph_k=3`, `graph_t=30`
+  - automatic equalization recommendation: `BalanceSimplest`, `sleft=2.0`,
+    `sright=4.0`
   - SPIX segment counts:
-    `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
-    `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
-    `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5
-  - slowest local stages: smoothing sweep 77.27 sec, 8 um preprocessing
-    41.70 sec, SPIX multiscale segmentation 39.86 sec, equalization sweep
-    35.70 sec, BayesSpace 19.03 sec, SPIX multiscale Moran/SVG 13.34 sec
+    `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
+    `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
+    `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21
+  - slowest local stages: SPIX multiscale segmentation 95.95 sec,
+    smoothing sweep 50.41 sec, 8 um preprocessing 46.25 sec,
+    equalization sweep 29.01 sec, SPIX multiscale Moran/SVG 25.20 sec,
+    BayesSpace 25.12 sec
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.
@@ -122,8 +125,8 @@ path.
   - peak RSS was about 16.6 GB.
 
 Conclusion: full P2 can be used as a high-memory stress/reference run, but it is
-not a safe free-tier Colab hands-on default. The workshop default remains the
-500k native 2 um ROI.
+not a safe free-tier Colab hands-on default. The workshop default is the 1M
+native 2 um ROI.
 
 ## Earlier Observed Colab CPU Result
 

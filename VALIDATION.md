@@ -25,36 +25,36 @@ Lecture section order:
 
 Default dataset:
 
-`data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+`data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
 Dataset details:
 
 - Native Visium HD 2 um ROI from full P2 intermediate.
 - Full source shape: `8731400 x 18085`.
-- Workshop shape: `500000 x 2515`.
-- File size: 42.89 MB.
+- Workshop shape: `1000000 x 2515`.
+- File size: 87.29 MiB.
 - SHA-256:
-  `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
+  `abf1f7848397869a1abd7b329d0dd86c9aea80bf87c71e93d727585a4c41802f`
 
 Local fallback executor result, 2026-07-06:
 
 - Code cells: 36/36 passed.
-- Total elapsed: 295.73 seconds after local dependencies and data were present.
+- Total elapsed: 379.53 seconds after local dependencies and data were present.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use; no custom helper functions are defined inside the
   notebook code cells.
 - ROI context plot input:
-  `data/visiumhd_p2_roi_context_downsample.csv`
+  `data/visiumhd_p2_roi_context_1000000_downsample.csv`
   - downsample points: 120,000 full-P2 coordinates
   - ROI context SHA-256:
-    `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`
+    `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`
 - Standard sections:
-  - 8 um pseudobulk shape: `31535 x 2515`
+  - 8 um pseudobulk shape: `62898 x 2515`
   - spatial domain comparison panel: `3500 x 2515`
 - SVG:
   - Squidpy Moran's I over all 2,515 workshop genes on 8 um pseudobulk.
   - Top 100 HVG/SVG overlap: 3 genes.
-  - Example top SVG genes: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `JCHAIN`.
+  - Example top SVG genes: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `COL3A1`.
 - Spatial domain:
   - expression-only Leiden baseline,
   - Squidpy spatial graph clustering,
@@ -62,55 +62,58 @@ Local fallback executor result, 2026-07-06:
   - BayesSpace through the R package, using the 8 um count matrix and grid
     coordinates,
   - SpaGCN.
+  - BayesSpace input is checked for zero-count bins; if the selected subset is
+    unsafe, the notebook falls back to the full workshop gene set before
+    calling R BayesSpace.
   - Pairwise ARI in the validation run:
-    expression vs Squidpy spatial graph 0.043, expression vs BANKSY 0.444,
-    expression vs BayesSpace 0.272, expression vs SpaGCN 0.567,
-    Squidpy spatial graph vs BANKSY 0.105, Squidpy spatial graph vs
-    BayesSpace 0.020, Squidpy spatial graph vs SpaGCN 0.063,
-    BANKSY vs BayesSpace 0.395, BANKSY vs SpaGCN 0.562,
-    BayesSpace vs SpaGCN 0.436.
+    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.389,
+    expression vs BayesSpace 0.633, expression vs SpaGCN 0.706,
+    Squidpy spatial graph vs BANKSY 0.121, Squidpy spatial graph vs
+    BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.065,
+    BANKSY vs BayesSpace 0.363, BANKSY vs SpaGCN 0.414,
+    BayesSpace vs SpaGCN 0.585.
 - Cell-cell interaction:
   - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
     `threshold=0.0`.
-  - Top CCI examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`,
-    and `LGALS3-ITGB1`.
-- SPIX section: full `500000 x 2515` 2 um ROI, following the VisiumHD P2
+  - Top CCI examples include `FN1-ITGA5`, `MIF-CD74`, `CD74-MIF`,
+    and `COL1A1-ITGB1`.
+- SPIX section: full `1000000 x 2515` 2 um ROI, following the VisiumHD P2
   manuscript/reproduction path:
   - PCA/log-normalized embedding with 30 dimensions and up to 2,000 features.
   - graph smoothing before equalization.
-  - smoothing sweep enabled by default; selected `graph_k=5`, `graph_t=30`.
+  - smoothing sweep enabled by default; selected `graph_k=3`, `graph_t=30`.
   - equalization sweep enabled by default; selected `BalanceSimplest`,
-    `sleft=0.5`, `sright=0.5`.
+    `sleft=2.0`, `sright=4.0`.
   - `image_plot_slic` multiscale segmentation at
     `2,8,16,30,40,50,80,100,150,200,250,300,350,400,450,500` um.
   - compactness auto-selection through candidate sweep in
     `precompute_multiscale_segments`.
   - multiscale Moran/SVG ranking with SPIX segment labels.
 - SPIX segment counts:
-  - `r2`: 500000 native 2 um bins
-  - `r8`: 32138
-  - `r16`: 8001
-  - `r30`: 2260
-  - `r40`: 1274
-  - `r50`: 804
-  - `r80`: 309
-  - `r100`: 198
-  - `r150`: 87
-  - `r200`: 47
-  - `r250`: 28
-  - `r300`: 21
-  - `r350`: 19
-  - `r400`: 12
-  - `r450`: 12
-  - `r500`: 5
+  - `r2`: 1000000 native 2 um bins
+  - `r8`: 55403
+  - `r16`: 16067
+  - `r30`: 4542
+  - `r40`: 2555
+  - `r50`: 1642
+  - `r80`: 647
+  - `r100`: 411
+  - `r150`: 178
+  - `r200`: 97
+  - `r250`: 61
+  - `r300`: 48
+  - `r350`: 36
+  - `r400`: 26
+  - `r450`: 21
+  - `r500`: 21
 - Slowest stages:
-  - SPIX smoothing sweep: 77.27 seconds
-  - 8 um preprocessing with Scanpy/Squidpy: 41.70 seconds
-  - SPIX multiscale segmentation: 39.86 seconds
-  - SPIX equalization sweep: 35.70 seconds
-  - BayesSpace spatial domain clustering: 19.03 seconds
-  - SPIX multiscale Moran/SVG: 13.34 seconds
+  - SPIX multiscale segmentation: 95.95 seconds
+  - SPIX smoothing sweep: 50.41 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 46.25 seconds
+  - SPIX equalization sweep: 29.01 seconds
+  - SPIX multiscale Moran/SVG: 25.20 seconds
+  - BayesSpace spatial domain clustering: 25.12 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

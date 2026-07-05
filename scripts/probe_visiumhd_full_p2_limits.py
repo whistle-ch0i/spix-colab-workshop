@@ -29,7 +29,7 @@ DEFAULT_FULL_H5AD = (
 )
 DEFAULT_REFERENCE_H5AD = (
     "/home/Data_Drive_8TB/chs1151/SPIX_0426/spix-colab-workshop/data/"
-    "visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad"
+    "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 )
 
 

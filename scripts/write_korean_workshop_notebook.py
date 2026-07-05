@@ -15,8 +15,8 @@ except Exception:  # pragma: no cover
     nbf = None
 
 
-DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad"
-ROI_CONTEXT_FILE = "visiumhd_p2_roi_context_downsample.csv"
+DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
+ROI_CONTEXT_FILE = "visiumhd_p2_roi_context_1000000_downsample.csv"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -1066,11 +1066,19 @@ def domain_cells() -> list:
             bayesspace_dir = OUTPUT_DIR / "bayesspace"
             bayesspace_dir.mkdir(parents=True, exist_ok=True)
 
-            bayesspace_genes = domain_hvg_table.head(
-                min(BAYESSPACE_N_GENES, len(domain_hvg_table))
-            ).index.tolist()
+            if BAYESSPACE_N_GENES >= domain_adata.n_vars:
+                bayesspace_genes = domain_adata.var_names.tolist()
+            else:
+                bayesspace_genes = domain_hvg_table.head(
+                    min(BAYESSPACE_N_GENES, len(domain_hvg_table))
+                ).index.tolist()
             bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
             bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
+            if np.any(bayesspace_spot_counts <= 0):
+                print("BayesSpace subset에 zero-count bin이 있어 전체 gene set으로 다시 준비합니다.")
+                bayesspace_genes = domain_adata.var_names.tolist()
+                bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
+                bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
             assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
             counts_for_r = bayesspace_raw.X.T
             if sp.issparse(counts_for_r):

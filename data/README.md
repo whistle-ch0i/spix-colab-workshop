@@ -4,14 +4,18 @@ This directory contains the workshop `.h5ad` files.
 
 Default for the KOGO practical notebook:
 
-`visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+`visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
 ROI overview helper:
 
-`visiumhd_p2_roi_context_downsample.csv`
+`visiumhd_p2_roi_context_1000000_downsample.csv`
 
 This CSV contains 120,000 downsampled full-P2 coordinates plus the selected ROI
 bounding box. The notebook uses it only for the first ROI-location plot.
+
+The previous 500k ROI is kept as a fallback for quick debugging:
+
+`visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
 Quick smoke-test and broader mini-reproduction file:
 

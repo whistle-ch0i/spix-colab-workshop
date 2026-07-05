@@ -14,7 +14,8 @@ KOGO 공간전사체 실습에서 사용할 Colab 파일입니다.
 코드는 함수형 helper를 최소화하고, 실습 중 위에서 아래로 따라가기 쉽도록
 단계별 code cell로 나누어 두었습니다.
 
-일반 분석은 2 um ROI를 8 um pseudobulk로 만든 뒤 진행합니다.
+기본 데이터는 VisiumHD P2의 native 2 um 1M-bin ROI입니다. 일반 분석은
+이 ROI를 8 um pseudobulk로 만든 뒤 진행합니다.
 
 - SVG: HVG와 Squidpy Moran's I 비교
 - Spatial domain: expression-only baseline, Squidpy spatial graph, BANKSY,

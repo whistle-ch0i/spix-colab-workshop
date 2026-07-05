@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover
     nbf = None
 
 
-DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad"
+DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -337,7 +337,7 @@ def build_notebook(data_url: str, data_sha256: str):
             ## 2. Load The Visium HD ROI
 
             This ROI comes from the public 10x Genomics Visium HD Human Colon Cancer P2
-            dataset. It keeps 500,000 native 2 um spatial bins and the marker-diverse
+            dataset. It keeps 1,000,000 native 2 um spatial bins and the marker-diverse
             workshop gene set.
             """
         ),
