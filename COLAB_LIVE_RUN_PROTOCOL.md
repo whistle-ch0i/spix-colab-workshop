@@ -20,6 +20,34 @@ ROI context URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
+Requirements URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
+
+Bootstrap URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
+
+Helper URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/workshop_helpers.py`
+
+## Before Opening Colab
+
+Before pushing:
+
+```bash
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/check_colab_publish_ready.py
+```
+
+After pushing:
+
+```bash
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/check_colab_publish_ready.py --check-urls
+```
+
 ## Run
 
 1. Open the Colab URL with a free-tier Google account.
@@ -60,7 +88,14 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
 - Code cells: 36/36 passed.
-- Local elapsed time after dependencies and data were present: 390.79 seconds.
+- Local elapsed time after dependencies and data were present: 358.72 seconds.
+- Setup files included in the repo:
+  `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
+  `notebooks/workshop_helpers.py`.
+- Pinned Python package check:
+  `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
+  `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
+  `numcodecs 0.13.1`.
 - Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `COL3A1`.
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
@@ -77,9 +112,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
   `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
   `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21.
-- Slowest local stages: smoothing sweep 94.68 sec, SPIX multiscale
-  segmentation 77.17 sec, 8 um preprocessing 45.38 sec, equalization sweep
-  28.50 sec, SPIX multiscale Moran/SVG 27.13 sec, BayesSpace 25.63 sec.
+- Slowest local stages: SPIX multiscale segmentation 81.39 sec, smoothing
+  sweep 66.40 sec, 8 um preprocessing 41.95 sec, SPIX multiscale Moran/SVG
+  37.74 sec, equalization sweep 27.62 sec, BayesSpace 22.49 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
@@ -98,8 +133,10 @@ Observed on 2026-07-06 with the earlier 16 um practical notebook:
 - Multiscale SVG Moran: 4.49 seconds.
 - Segment-level spatial LR scoring: 3.89 seconds.
 
-For planning the current 1M 2 um notebook, budget about 6-9 minutes for a
-fresh Colab runtime until a new real Colab timing report is collected.
+For planning the current 1M 2 um notebook, the local analysis pass takes about
+6 minutes after packages and data are present. A fresh Colab runtime also has
+to install packages and download files, so reserve about 8-15 minutes until a
+new real Colab timing report is collected.
 
 ## Local Baseline
 

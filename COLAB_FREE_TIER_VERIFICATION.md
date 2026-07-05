@@ -7,12 +7,20 @@ Official Colab FAQ checked on 2026-07-05:
 
 ## Preflight
 
-1. Push the workshop folder and data file to the branch used by the notebook.
-2. Confirm the notebook data URL resolves:
+1. Before pushing, run:
+   `python scripts/check_colab_publish_ready.py`
+2. Push the workshop folder and data file to the branch used by the notebook.
+3. After pushing, run:
+   `python scripts/check_colab_publish_ready.py --check-urls`
+4. Confirm the notebook data URL resolves:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
-3. Confirm the ROI context URL resolves:
+5. Confirm the ROI context URL resolves:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
-4. Confirm the SPIX install URL in the notebook points to a branch containing
+6. Confirm the requirements/bootstrap/helper URLs resolve:
+   - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
+   - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
+   - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/workshop_helpers.py`
+7. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
 ## Free-Tier Condition
@@ -69,8 +77,15 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 390.79 seconds
+  - local elapsed after dependencies and data were present: 358.72 seconds
   - code cells: 36/36 passed
+  - setup files are included in the repo:
+    `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
+    `notebooks/workshop_helpers.py`
+  - pinned Python package check:
+    `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
+    `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
+    `numcodecs 0.13.1`
 - Output checks:
   - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
     `COL3A1`
@@ -94,9 +109,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
     `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
     `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21
-  - slowest local stages: smoothing sweep 94.68 sec, SPIX multiscale
-    segmentation 77.17 sec, 8 um preprocessing 45.38 sec, equalization sweep
-    28.50 sec, SPIX multiscale Moran/SVG 27.13 sec, BayesSpace 25.63 sec
+  - slowest local stages: SPIX multiscale segmentation 81.39 sec,
+    smoothing sweep 66.40 sec, 8 um preprocessing 41.95 sec,
+    SPIX multiscale Moran/SVG 37.74 sec, equalization sweep 27.62 sec,
+    BayesSpace 22.49 sec
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

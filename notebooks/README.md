@@ -16,6 +16,10 @@ KOGO 공간전사체 실습에서 사용할 Colab 파일입니다.
 반복되는 작업만 `workshop_helpers.py`로 뺐고, 분석 도구는 노트북 안에서 원래
 함수 이름으로 직접 호출합니다.
 
+Colab에서 패키지 설치와 SPIX optional import 보정은 `colab_bootstrap.py`가
+담당합니다. Python 패키지 버전은 repo root의 `requirements-colab.txt`에 고정해
+두었습니다.
+
 기본 데이터는 VisiumHD P2의 native 2 um 1M-bin ROI입니다. 일반 분석은
 이 ROI를 8 um pseudobulk로 만든 뒤 진행합니다.
 

@@ -30,6 +30,17 @@ DEFAULT_HELPER_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"notebooks/{HELPER_FILE}"
 )
+BOOTSTRAP_FILE = "colab_bootstrap.py"
+DEFAULT_BOOTSTRAP_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"notebooks/{BOOTSTRAP_FILE}"
+)
+REQUIREMENTS_FILE = "requirements-colab.txt"
+DEFAULT_REQUIREMENTS_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"{REQUIREMENTS_FILE}"
+)
+DEFAULT_SPIX_INSTALL_URL = "git+https://github.com/whistle-ch0i/SPIX.git"
 DEFAULT_NOTEBOOK_DIR = "notebooks"
 COMBINED_NOTEBOOK = "Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb"
 
@@ -82,14 +93,16 @@ def setup_cells(
     data_sha256: str,
     roi_context_url: str,
     roi_context_sha256: str,
+    requirements_url: str,
+    bootstrap_url: str,
     helper_url: str,
+    spix_install_url: str,
 ) -> list:
     setup_code = """
     import os
     import sys
     import json
     import time
-    import shutil
     import warnings
     import subprocess
     import urllib.request
@@ -115,8 +128,13 @@ def setup_cells(
     ROI_CONTEXT_FILE = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_FILE", __ROI_CONTEXT_FILE__)
     ROI_CONTEXT_URL = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_URL", __ROI_CONTEXT_URL__)
     ROI_CONTEXT_SHA256 = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_SHA256", __ROI_CONTEXT_SHA256__)
+    REQUIREMENTS_FILE = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_FILE", __REQUIREMENTS_FILE__)
+    REQUIREMENTS_URL = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_URL", __REQUIREMENTS_URL__)
+    BOOTSTRAP_FILE = os.environ.get("SPIX_WORKSHOP_BOOTSTRAP_FILE", __BOOTSTRAP_FILE__)
+    BOOTSTRAP_URL = os.environ.get("SPIX_WORKSHOP_BOOTSTRAP_URL", __BOOTSTRAP_URL__)
     HELPER_FILE = os.environ.get("SPIX_WORKSHOP_HELPER_FILE", __HELPER_FILE__)
     HELPER_URL = os.environ.get("SPIX_WORKSHOP_HELPER_URL", __HELPER_URL__)
+    SPIX_INSTALL_URL = os.environ.get("SPIX_WORKSHOP_SPIX_INSTALL_URL", __SPIX_INSTALL_URL__)
 
     OUTPUT_DIR = Path("spix_korean_lecture_outputs") / LECTURE_ID
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -125,18 +143,39 @@ def setup_cells(
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
-    helper_candidates = [
-        Path(HELPER_FILE),
-        Path("notebooks") / HELPER_FILE,
-        Path.cwd() / "notebooks" / HELPER_FILE,
-        Path("/content") / HELPER_FILE,
+    bootstrap_candidates = [
+        Path(BOOTSTRAP_FILE),
+        Path("notebooks") / BOOTSTRAP_FILE,
+        Path.cwd() / "notebooks" / BOOTSTRAP_FILE,
+        Path("/content") / BOOTSTRAP_FILE,
     ]
-    helper_path = next((path.resolve() for path in helper_candidates if path.exists()), None)
-    if helper_path is None:
-        helper_path = Path("/content" if IN_COLAB else ".") / HELPER_FILE
-        print("Downloading helper:", HELPER_URL)
-        urllib.request.urlretrieve(HELPER_URL, helper_path)
-        helper_path = helper_path.resolve()
+    bootstrap_path = next((path.resolve() for path in bootstrap_candidates if path.exists()), None)
+    if bootstrap_path is None:
+        bootstrap_path = Path("/content" if IN_COLAB else ".") / BOOTSTRAP_FILE
+        print("Downloading bootstrap:", BOOTSTRAP_URL)
+        urllib.request.urlretrieve(BOOTSTRAP_URL, bootstrap_path)
+        bootstrap_path = bootstrap_path.resolve()
+    sys.path.insert(0, str(bootstrap_path.parent))
+
+    from colab_bootstrap import (
+        ensure_bayesspace,
+        ensure_python_requirements,
+        ensure_spix,
+        locate_or_download_repo_file,
+        package_versions,
+        patch_spix_optional_imports,
+    )
+
+    requirements_path = locate_or_download_repo_file(
+        REQUIREMENTS_FILE,
+        REQUIREMENTS_URL,
+        search_dirs=[".", "notebooks", Path.cwd(), Path.cwd() / "notebooks", "/content"],
+    )
+    helper_path = locate_or_download_repo_file(
+        HELPER_FILE,
+        HELPER_URL,
+        search_dirs=[".", "notebooks", Path.cwd(), Path.cwd() / "notebooks", "/content"],
+    )
     sys.path.insert(0, str(helper_path.parent))
 
     from workshop_helpers import (
@@ -167,8 +206,13 @@ def setup_cells(
         .replace("__ROI_CONTEXT_FILE__", json.dumps(ROI_CONTEXT_FILE))
         .replace("__ROI_CONTEXT_URL__", json.dumps(roi_context_url))
         .replace("__ROI_CONTEXT_SHA256__", json.dumps(roi_context_sha256))
+        .replace("__REQUIREMENTS_FILE__", json.dumps(REQUIREMENTS_FILE))
+        .replace("__REQUIREMENTS_URL__", json.dumps(requirements_url))
+        .replace("__BOOTSTRAP_FILE__", json.dumps(BOOTSTRAP_FILE))
+        .replace("__BOOTSTRAP_URL__", json.dumps(bootstrap_url))
         .replace("__HELPER_FILE__", json.dumps(HELPER_FILE))
         .replace("__HELPER_URL__", json.dumps(helper_url))
+        .replace("__SPIX_INSTALL_URL__", json.dumps(spix_install_url))
     )
 
     return [
@@ -191,81 +235,32 @@ def setup_cells(
             """
             ## 1. 패키지 준비
 
-            Colab에서 없는 패키지는 여기서 설치합니다. 로컬에서 실행할 때는 현재
-            workspace에 있는 SPIX checkout을 먼저 사용합니다. Spatial domain 비교에
-            BayesSpace를 포함했기 때문에 R의 BayesSpace 패키지도 함께 확인합니다.
+            Colab에서는 `requirements-colab.txt`에 적어 둔 버전으로 Python
+            패키지를 맞춥니다. 로컬에서 실행할 때는 현재 환경을 그대로 사용합니다.
+
+            Spatial domain 비교에 BayesSpace를 포함했기 때문에 R의 BayesSpace
+            패키지도 함께 확인합니다. 설치와 import 보정은 `colab_bootstrap.py`에
+            모아 두고, 분석 코드는 뒤쪽 cell에서 원래 패키지 API로 직접 호출합니다.
             """
         ),
         code(
             """
             with timed_stage("import_or_install", STAGE_TIMES):
-                if importlib.util.find_spec("SPIX") is None:
-                    repo_root = None
-                    for root in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
-                        if (root / "SPIX" / "__init__.py").exists():
-                            repo_root = root
-                            break
-
-                    if repo_root is not None:
-                        sys.path.insert(0, str(repo_root))
-                    elif IN_COLAB:
-                        subprocess.check_call([
-                            sys.executable,
-                            "-m",
-                            "pip",
-                            "install",
-                            "-q",
-                            "git+https://github.com/whistle-ch0i/SPIX.git",
-                        ])
-                    else:
-                        raise ImportError("SPIX repo 안에서 실행하거나 SPIX를 설치하세요.")
-
-                needed = {
-                    "scanpy": "scanpy",
-                    "squidpy": "squidpy",
-                    "SpaGCN": "SpaGCN",
-                    "banksy": "pybanksy",
-                    "anndata": "anndata",
-                }
-                missing = [
-                    pip_name
-                    for module, pip_name in needed.items()
-                    if importlib.util.find_spec(module) is None
-                ]
-                if missing:
-                    if not IN_COLAB:
-                        raise ImportError(f"설치되지 않은 패키지: {missing}")
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *missing])
-
-                if shutil.which("Rscript") is None:
-                    raise ImportError("BayesSpace 실행을 위해 Rscript가 필요합니다.")
-
-                bayesspace_check = subprocess.run(
-                    [
-                        "Rscript",
-                        "-e",
-                        "quit(status=ifelse(requireNamespace('BayesSpace', quietly=TRUE), 0, 1))",
-                    ],
-                    capture_output=True,
-                    text=True,
-                )
-                if bayesspace_check.returncode != 0:
-                    if not IN_COLAB:
-                        raise ImportError("R package BayesSpace가 설치되어 있지 않습니다.")
-                    subprocess.check_call([
-                        "Rscript",
-                        "-e",
-                        (
-                            "if (!requireNamespace('BiocManager', quietly=TRUE)) "
-                            "install.packages('BiocManager', repos='https://cloud.r-project.org'); "
-                            "BiocManager::install('BayesSpace', update=FALSE, ask=FALSE); "
-                            "if (!requireNamespace('BayesSpace', quietly=TRUE)) "
-                            "stop('BayesSpace install failed')"
-                        ),
-                    ])
+                ensure_python_requirements(requirements_path, in_colab=IN_COLAB)
+                ensure_spix(SPIX_INSTALL_URL, in_colab=IN_COLAB)
+                ensure_bayesspace(in_colab=IN_COLAB)
                 R_BAYESSPACE_READY = True
 
             print("BayesSpace R package: ready")
+            print(json.dumps(package_versions([
+                "scanpy",
+                "squidpy",
+                "SpaGCN",
+                "pybanksy",
+                "anndata",
+                "zarr",
+                "numcodecs",
+            ]), indent=2, ensure_ascii=False))
             """
         ),
         md(
@@ -280,23 +275,10 @@ def setup_cells(
             """
             with timed_stage("patch_spix_optional_imports", STAGE_TIMES):
                 if IN_COLAB:
-                    spix_spec = importlib.util.find_spec("SPIX")
-                    spix_root = Path(spix_spec.origin).parent
-
-                    visualization_init = spix_root / "visualization" / "__init__.py"
-                    if visualization_init.exists():
-                        visualization_init.write_text(
-                            "from .plotting import *\\n"
-                            "from .origin_display import *\\n"
-                        )
-
-                    analysis_init = spix_root / "analysis" / "__init__.py"
-                    if analysis_init.exists():
-                        analysis_init.write_text(
-                            "import os\\n"
-                            "os.environ.setdefault('NUMBA_CACHE_DIR', '/tmp/numba_spix')\\n"
-                            "from .multiscale_moran_ranks import *\\n"
-                        )
+                    patch_spix_optional_imports()
+                    print("SPIX optional imports patched")
+                else:
+                    print("Local run: SPIX optional import patch skipped")
             """
         ),
         md(
@@ -1727,7 +1709,10 @@ def combined_notebook(
     data_sha256: str,
     roi_context_url: str,
     roi_context_sha256: str,
+    requirements_url: str,
+    bootstrap_url: str,
     helper_url: str,
+    spix_install_url: str,
 ):
     nb = new_notebook(COMBINED_NOTEBOOK)
     nb["cells"] = [
@@ -1768,7 +1753,16 @@ def combined_notebook(
         ),
     ]
     nb["cells"].extend(
-        setup_cells(data_url, data_sha256, roi_context_url, roi_context_sha256, helper_url)
+        setup_cells(
+            data_url,
+            data_sha256,
+            roi_context_url,
+            roi_context_sha256,
+            requirements_url,
+            bootstrap_url,
+            helper_url,
+            spix_install_url,
+        )
     )
     nb["cells"].extend(data_cells())
     nb["cells"].extend(eight_um_cells())
@@ -1795,7 +1789,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-url", default=DEFAULT_DATA_URL)
     parser.add_argument("--roi-context-file", default=f"data/{ROI_CONTEXT_FILE}")
     parser.add_argument("--roi-context-url", default=DEFAULT_ROI_CONTEXT_URL)
+    parser.add_argument("--requirements-url", default=DEFAULT_REQUIREMENTS_URL)
+    parser.add_argument("--bootstrap-url", default=DEFAULT_BOOTSTRAP_URL)
     parser.add_argument("--helper-url", default=DEFAULT_HELPER_URL)
+    parser.add_argument("--spix-install-url", default=DEFAULT_SPIX_INSTALL_URL)
     return parser.parse_args()
 
 
@@ -1812,7 +1809,10 @@ def main() -> None:
         data_sha256,
         args.roi_context_url,
         roi_context_sha256,
+        args.requirements_url,
+        args.bootstrap_url,
         args.helper_url,
+        args.spix_install_url,
     )
     write_notebook(notebook_dir / name, nb)
 

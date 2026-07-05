@@ -152,22 +152,42 @@ workflow, but on the bounded 1M native 2 um ROI. Current numbers are in
 
 ## Publish For Colab
 
-The notebook expects this raw data URL:
+Before pushing, check the files that Colab will need:
+
+```bash
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/check_colab_publish_ready.py
+```
+
+After pushing, check the GitHub raw URLs:
+
+```bash
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/check_colab_publish_ready.py --check-urls
+```
+
+The notebook expects these raw URLs:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 
-It also expects this ROI context URL:
-
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
-Before a live run, make sure both files exist at those URLs. If not, set
-`SPIX_WORKSHOP_DATA_URL` and `SPIX_WORKSHOP_ROI_CONTEXT_URL` in the first
-notebook cell.
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/workshop_helpers.py`
+
+Before a live run, make sure those files exist at the URLs above. If not, set
+the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
 
 ## Colab Notes
 
 - Use CPU runtime: `Runtime > Change runtime type > Hardware accelerator: None`.
 - The notebook defaults to `N_JOBS=2`.
+- Python packages are pinned in `requirements-colab.txt`. `zarr==2.18.3` is
+  fixed deliberately so the SPIX image-cache step does not receive zarr v3 in a
+  fresh Colab runtime.
 - Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
   for workshop participants. The first notebook cell records `cpu_count`,
   memory, and disk space for the actual runtime.

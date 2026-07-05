@@ -39,11 +39,17 @@ Dataset details:
 Local fallback executor result, 2026-07-06:
 
 - Code cells: 36/36 passed.
-- Total elapsed: 390.79 seconds after local dependencies and data were present.
+- Total elapsed: 358.72 seconds after local dependencies and data were present.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use. Repeated file/checksum/timing/plotting chores live in
-  `notebooks/workshop_helpers.py`; the notebook cells still call Scanpy,
-  Squidpy, BANKSY, BayesSpace, SpaGCN, and SPIX directly.
+  `notebooks/workshop_helpers.py`. Colab setup chores live in
+  `notebooks/colab_bootstrap.py`, and Python package versions are pinned in
+  `requirements-colab.txt`. The notebook cells still call Scanpy, Squidpy,
+  BANKSY, BayesSpace, SpaGCN, and SPIX directly.
+- Pinned package check in the validation run:
+  `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
+  `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
+  `numcodecs 0.13.1`.
 - ROI context plot input:
   `data/visiumhd_p2_roi_context_1000000_downsample.csv`
   - downsample points: 120,000 full-P2 coordinates
@@ -67,12 +73,12 @@ Local fallback executor result, 2026-07-06:
     unsafe, the notebook falls back to the full workshop gene set before
     calling R BayesSpace.
   - Pairwise ARI in the validation run:
-    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.410,
-    expression vs BayesSpace 0.633, expression vs SpaGCN 0.674,
-    Squidpy spatial graph vs BANKSY 0.114, Squidpy spatial graph vs
+    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.501,
+    expression vs BayesSpace 0.633, expression vs SpaGCN 0.738,
+    Squidpy spatial graph vs BANKSY 0.123, Squidpy spatial graph vs
     BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.073,
-    BANKSY vs BayesSpace 0.383, BANKSY vs SpaGCN 0.461,
-    BayesSpace vs SpaGCN 0.633.
+    BANKSY vs BayesSpace 0.480, BANKSY vs SpaGCN 0.540,
+    BayesSpace vs SpaGCN 0.644.
 - Cell-cell interaction:
   - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
@@ -108,12 +114,12 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 21
   - `r500`: 21
 - Slowest stages:
-  - SPIX smoothing sweep: 94.68 seconds
-  - SPIX multiscale segmentation: 77.17 seconds
-  - 8 um preprocessing with Scanpy/Squidpy: 45.38 seconds
-  - SPIX equalization sweep: 28.50 seconds
-  - SPIX multiscale Moran/SVG: 27.13 seconds
-  - BayesSpace spatial domain clustering: 25.63 seconds
+  - SPIX multiscale segmentation: 81.39 seconds
+  - SPIX smoothing sweep: 66.40 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 41.95 seconds
+  - SPIX multiscale Moran/SVG: 37.74 seconds
+  - SPIX equalization sweep: 27.62 seconds
+  - BayesSpace spatial domain clustering: 22.49 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 
