@@ -1,21 +1,21 @@
 # SPIX Colab Workshop
 
-Colab-ready SPIX materials for a short hands-on session. The main live notebook
-uses a native-resolution 2 um ROI from the public 10x Genomics Visium HD Human
-Colon Cancer dataset, so participants see data closer to the manuscript setting
+Colab-ready SPIX materials for a short hands-on session. The live notebook uses
+a native-resolution 2 um ROI from the public 10x Genomics Visium HD Human Colon
+Cancer dataset, so participants see data closer to the manuscript setting
 without waiting on the full 8.7M-bin slide.
 
-The main workshop thread is:
-
-- build SPIX multiscale units,
-- cluster SPIX units into spatial domains,
-- rank scale-response SVGs,
-- score a small spatial ligand-receptor panel,
-- save a timing report for Colab validation.
-
-Start here:
+The main Korean workshop notebook is:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
+
+The notebook is organized in this lecture order:
+
+- SVG with Squidpy Moran's I
+- spatial clustering with Scanpy PCA-neighbors-Leiden
+- cell-cell interaction with Squidpy `ligrec`
+- SPIX VisiumHD P2 manuscript-style graph smoothing, equalization,
+  `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG
 
 A second notebook keeps the broader manuscript mini-reproduction flow:
 
@@ -43,6 +43,18 @@ It is a spatially contiguous native-resolution ROI with 500,000 bins and the
 same marker-diverse workshop gene set. The full 2 um P2 source has
 `8731400 x 18085` observations/features and is intentionally not used for the
 live exercise.
+
+For workshop stability, the first three standard-tool sections use a central
+spatially contiguous teaching subset from this file. The current default is
+47,039 non-empty 2 um bins after zero-count filtering. The final SPIX section
+uses the full 500,000-bin ROI.
+
+The full P2 object was explicitly probed on 2026-07-06. Under a 12 GiB
+free-tier-style memory cap, the full in-memory read failed before SPIX analysis,
+and even the `8M x 2515` selected-gene backed materialization failed. On a
+high-memory local server, the optimized `8M x 2515` SPIX segmentation plus
+multiscale Moran path completed with `N_JOBS=2`, peaking around 16.6 GB RSS.
+Those numbers are recorded in `VALIDATION.md`.
 
 The smaller 16 um file remains in `data/` for quick smoke tests and for the
 broader mini-reproduction notebook:
@@ -83,14 +95,13 @@ python scripts/build_visiumhd_colon_roi_h5ad.py \
   --candidate-count 512
 ```
 
-## Regenerate Notebooks
+## Regenerate Notebook
 
-Regenerate after changing the data file or default URLs:
+Regenerate the Korean workshop notebook after changing the data file or default
+URLs:
 
 ```bash
-python3 scripts/write_choi_whisoo_colab_notebook.py \
-  --output notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb \
-  --data-file data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad
+python3 scripts/write_korean_workshop_notebook.py
 ```
 
 ## Local Check
@@ -119,11 +130,13 @@ python scripts/execute_notebook_code_cells.py \
   --workdir .
 ```
 
-Current numbers are in `VALIDATION.md`.
+The current local check uses the same VisiumHD P2 SPIX path as the manuscript
+workflow, but on the bounded 500k native 2 um ROI. Current numbers are in
+`VALIDATION.md`.
 
 ## Publish For Colab
 
-The notebooks expect this raw data URL:
+The notebook expects this raw data URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
@@ -134,6 +147,13 @@ Before a live run, make sure the data file exists at that URL. If not, set
 
 - Use CPU runtime: `Runtime > Change runtime type > Hardware accelerator: None`.
 - The notebook defaults to `N_JOBS=2`.
-- Keep participant edits focused on `RESOLUTIONS_UM`, `N_JOBS`, CCI radius,
+- Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
+  for workshop participants. The first notebook cell records `cpu_count`,
+  memory, and disk space for the actual runtime.
+- Keep participant edits focused on `SPIX_WORKSHOP_TOOL_MAX_OBS`,
+  `SPIX_WORKSHOP_SCANPY_RESOLUTION`, `SPIX_WORKSHOP_LIGREC_PERMUTATIONS`,
+  `SPIX_WORKSHOP_RESOLUTIONS_UM`, `SPIX_WORKSHOP_SPIX_GRAPH_K`,
+  `SPIX_WORKSHOP_SPIX_GRAPH_T`, `SPIX_WORKSHOP_SPIX_EQ_SLEFT`,
+  `SPIX_WORKSHOP_SPIX_EQ_SRIGHT`, `SPIX_WORKSHOP_SPIX_RUN_TUNING`, `N_JOBS`,
   and gene lists.
 - If Colab is slow or disconnects, restart the runtime and run cells from the top.

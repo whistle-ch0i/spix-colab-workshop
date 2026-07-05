@@ -4,7 +4,7 @@ Use this checklist for the live free-tier run.
 
 ## Open
 
-Main notebook:
+Main Korean workshop notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 
@@ -22,7 +22,7 @@ Data URL:
 2. Select `Runtime > Disconnect and delete runtime`.
 3. Select `Runtime > Change runtime type > Hardware accelerator: None`.
 4. Run all cells.
-5. Keep the downloaded `choi_whisoo_colab_timing_report.json`.
+5. Keep the downloaded timing report JSON.
 
 For a clean free-tier check, do not use Pro, Pro+, Pay As You Go compute units,
 or an enterprise runtime.
@@ -32,24 +32,31 @@ or an enterprise runtime.
 - `runtime.running_in_colab` is `true`.
 - `runtime.thread_cap` is `2`.
 - `validation_passed` is `true`.
-- All four sections complete:
-  - SPIX multiscale segmentation,
-  - spatial clustering,
-  - multiscale SVG,
-  - segment-level spatial LR scoring.
+- The notebook completes the SVG, spatial clustering, cell-cell interaction,
+  and SPIX sections.
 - The final report contains stage timings.
+- The SPIX section reports the VisiumHD P2-style path:
+  30-dimensional embedding, graph smoothing before equalization,
+  `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG.
 - Total time is acceptable for the workshop slot.
 
 ## Current Default Local Check
 
-Observed locally on 2026-07-06 with the Choi Whisoo notebook and
-pip-installed SPIX, using a Colab-path stub:
+Observed locally on 2026-07-06 with the Korean combined notebook:
 
 - Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
-- Validation: passed.
-- Total elapsed after dependencies were installed: 29.97 seconds.
-- SPIX segment counts: `r48` 900, `r96` 220, `r192` 52, `r384` 12.
-- Spatial LR radius: 160 um, converted to 80 coordinate units for 2 um bins.
+- Validation: top-to-bottom notebook pass with `N_JOBS=2`.
+- Local elapsed time after dependencies and data were present: 128.32 seconds.
+- Standard-tool teaching subset: `47039 x 2515`.
+- Scanpy Leiden clusters: 13 at `n_neighbors=30`, `resolution=0.01`.
+- Squidpy Moran top examples: `OLFM4`, `PIGR`, `REG1A`, `MUC2`, `TAGLN`.
+- Squidpy `ligrec`: 11 LR candidates, 20 permutations.
+- SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
+  equalization, `image_plot_slic` segmentation, and multiscale Moran/SVG.
+- SPIX segment counts:
+  `r2` 500000, `r8` 32146, `r16` 8012, `r30` 2272, `r40` 1277,
+  `r50` 806, `r80` 312, `r100` 200, `r150` 89, `r200` 51,
+  `r250` 29, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.

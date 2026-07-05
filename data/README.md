@@ -2,7 +2,7 @@
 
 This directory contains the workshop `.h5ad` files.
 
-Main Choi Whisoo notebook default:
+Default for the Korean workshop notebook:
 
 `visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
@@ -24,7 +24,8 @@ python ../scripts/build_visiumhd_colon_roi_h5ad.py --help
 
 The file is derived from the 10x Genomics Visium HD Human Colon Cancer public
 dataset. The main file keeps native 2 um bins while bounding the ROI and gene
-set for workshop runtime stability.
+set for workshop runtime stability. The SPIX section uses this file to run the
+VisiumHD P2 manuscript-style workflow on a Colab-sized native-resolution ROI.
 
 Source dataset:
 <https://www.10xgenomics.com/datasets/visium-hd-cytassist-11mm-human-colon-cancer-HE>
