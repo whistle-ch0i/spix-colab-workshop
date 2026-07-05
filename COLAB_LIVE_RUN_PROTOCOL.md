@@ -14,7 +14,7 @@ Colab URL:
 
 Data URL:
 
-`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad`
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
 ## Run
 
@@ -40,9 +40,23 @@ or an enterprise runtime.
 - The final report contains stage timings.
 - Total time is acceptable for the workshop slot.
 
-## Known Passing Colab CPU Run
+## Current Default Local Check
 
-Observed on 2026-07-06 with the Choi Whisoo notebook:
+Observed locally on 2026-07-06 with the Choi Whisoo notebook and
+pip-installed SPIX, using a Colab-path stub:
+
+- Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
+- Validation: passed.
+- Total elapsed after dependencies were installed: 29.97 seconds.
+- SPIX segment counts: `r48` 900, `r96` 220, `r192` 52, `r384` 12.
+- Spatial LR radius: 160 um, converted to 80 coordinate units for 2 um bins.
+
+This is the current preflight baseline. Run the notebook once in real Colab
+after pushing any data/notebook changes and keep the downloaded timing report.
+
+## Earlier Passing Colab CPU Run
+
+Observed on 2026-07-06 with the earlier 16 um Choi Whisoo notebook:
 
 - Runtime: Colab CPU session, Python `3.12.13`, 2 CPUs, 12.67 GB RAM.
 - Dataset: `10000 x 2515`.
@@ -54,12 +68,12 @@ Observed on 2026-07-06 with the Choi Whisoo notebook:
 - Multiscale SVG Moran: 4.49 seconds.
 - Segment-level spatial LR scoring: 3.89 seconds.
 
-For planning, budget about 3 minutes for a fresh Colab runtime and keep a few
-extra minutes for participants whose package install is slower.
+For planning the current 500k 2 um notebook, budget about 4-5 minutes for a
+fresh Colab runtime until a new real Colab timing report is collected.
 
 ## Local Baseline
 
-Local low-resource run on 2026-07-05:
+Legacy local low-resource run on 2026-07-05:
 
 - Code cells: 13/13 passed.
 - Dataset: `10000 x 2515`.

@@ -9,7 +9,7 @@ Official Colab FAQ checked on 2026-07-05:
 
 1. Push the workshop folder and data file to the branch used by the notebook.
 2. Confirm the notebook data URL resolves:
-   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad`
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 3. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
@@ -35,19 +35,42 @@ units, or enterprise allocation.
 - `running_in_colab` is `true` in the first-cell runtime snapshot.
 - Notebook runs on CPU runtime with no GPU requirement.
 - Data SHA-256 check passes.
-- All SPIX stages complete:
-  - embedding/equalization/cache,
-  - `precompute_multiscale_segments`,
-  - `multiscale_moran_ranks`,
-  - best-scale summary,
-  - native and SPIX-averaged expression maps,
-  - expression-versus-organization summary.
+- All Choi Whisoo notebook stages complete:
+  - SPIX embedding/equalization/cache,
+  - multiscale SPIX segmentation,
+  - spatial clustering,
+  - multiscale SVG Moran ranking,
+  - marker-derived cell-state scoring,
+  - segment-level spatial LR scoring.
 - Final segment counts and rank-table shapes are non-empty.
 - Total elapsed runtime is acceptable for the workshop slot.
 
-## Observed Colab CPU Result
+## Current Default Preflight Result
+
+Observed locally on 2026-07-06 with the Choi Whisoo notebook and pip-installed
+SPIX, using a Colab-path stub:
+
+- Data:
+  - shape: `500000 x 2515`
+  - file size: 42.89 MB
+  - SHA-256:
+    `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
+- Result:
+  - `validation_passed`: true
+  - total elapsed after dependencies were installed: 29.97 seconds
+- Output checks:
+  - segment counts: `r48` 900, `r96` 220, `r192` 52, `r384` 12
+  - spatial LR radius: 160 um, converted to 80 coordinate units
+  - top LR examples include `MIF-CD74`, `CD74-MIF`, and
+    `COL1A1-ITGB1`
+
+This validates the current notebook/data path before a live Colab run. Collect
+a new downloaded timing report from real Colab after this change is pushed.
+
+## Earlier Observed Colab CPU Result
 
 Timing report received on 2026-07-06 from
+the earlier 16 um version of
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`.
 
 - Runtime:
@@ -79,10 +102,10 @@ Timing report received on 2026-07-06 from
   - top LR examples include `MIF-CD74`, `CD74-MIF`, and
     `COL1A1-ITGB1`
 
-This is sufficient evidence that the live workshop path can complete on a
-small Colab CPU runtime. For a strict free-tier claim, the runner should still
-confirm that the Google account had no Pro, Pay As You Go, or enterprise
-allocation active during the run.
+This remains useful evidence that the notebook structure can complete on a
+small Colab CPU runtime. Because the current default dataset is now the larger
+2 um ROI, collect a fresh real-Colab timing report before using this as the
+current workshop timing.
 
 ## Local Baseline
 

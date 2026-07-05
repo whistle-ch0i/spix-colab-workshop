@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover
     nbf = None
 
 
-DATA_FILE = "visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad"
+DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -84,7 +84,7 @@ def build_notebook(data_url: str, data_sha256: str):
             - spatial ligand-receptor scoring
 
             The full 2 um slide is too large for a room of free Colab runtimes. This
-            version uses a compact public ROI and records timing at each stage.
+            version uses a native-resolution 2 um ROI and records timing at each stage.
             """
         ),
         md(
@@ -132,9 +132,9 @@ def build_notebook(data_url: str, data_sha256: str):
                 os.environ.setdefault(var, str(N_JOBS))
             os.environ.setdefault("SPIX_ENABLE_THREAD_CAP", "1")
 
-            DATA_FILE = "{DATA_FILE}"
+            DATA_FILE = os.environ.get("SPIX_WORKSHOP_DATA_FILE", "{DATA_FILE}")
             DATA_URL = os.environ.get("SPIX_WORKSHOP_DATA_URL", "{data_url}")
-            DATA_SHA256 = "{data_sha256}"
+            DATA_SHA256 = os.environ.get("SPIX_WORKSHOP_DATA_SHA256", "{data_sha256}")
             OUTPUT_DIR = Path("spix_choi_whisoo_outputs")
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -337,7 +337,8 @@ def build_notebook(data_url: str, data_sha256: str):
             ## 2. Load The Visium HD ROI
 
             This ROI comes from the public 10x Genomics Visium HD Human Colon Cancer P2
-            dataset. It keeps 10,000 spatial bins and a marker-diverse gene set.
+            dataset. It keeps 500,000 native 2 um spatial bins and the marker-diverse
+            workshop gene set.
             """
         ),
         code(
@@ -350,16 +351,19 @@ def build_notebook(data_url: str, data_sha256: str):
                 return h.hexdigest()
 
             def locate_or_download_data():
+                data_file_path = Path(DATA_FILE).expanduser()
+                data_file_name = data_file_path.name
                 candidates = [
-                    Path("data") / DATA_FILE,
-                    Path("..") / "data" / DATA_FILE,
-                    Path.cwd() / "data" / DATA_FILE,
-                    Path("/content") / DATA_FILE,
+                    data_file_path,
+                    Path("data") / data_file_name,
+                    Path("..") / "data" / data_file_name,
+                    Path.cwd() / "data" / data_file_name,
+                    Path("/content") / data_file_name,
                 ]
                 for candidate in candidates:
                     if candidate.exists():
                         return candidate.resolve()
-                target = Path("/content" if IN_COLAB else ".") / DATA_FILE
+                target = Path("/content" if IN_COLAB else ".") / data_file_name
                 print("Downloading data from:", DATA_URL)
                 urllib.request.urlretrieve(DATA_URL, target)
                 return target.resolve()
@@ -443,8 +447,12 @@ def build_notebook(data_url: str, data_sha256: str):
             """
             EMBEDDING_DIMS = 16
             EMBEDDING_CHANNELS = list(range(EMBEDDING_DIMS))
-            RESOLUTIONS_UM = [48, 96, 192, 384]
-            PITCH_UM = 16.0
+            RESOLUTIONS_UM = [
+                float(x.strip())
+                for x in os.environ.get("SPIX_WORKSHOP_RESOLUTIONS_UM", "48,96,192,384").split(",")
+                if x.strip()
+            ]
+            PITCH_UM = float(os.environ.get("SPIX_WORKSHOP_PITCH_UM", "2.0"))
             SEGMENT_DIR = OUTPUT_DIR / "multiscale_segments"
 
             with timed_stage("spix_embedding_and_image_cache"):
@@ -565,8 +573,10 @@ def build_notebook(data_url: str, data_sha256: str):
             """
             ## 5. Spatial Clustering
 
-            Cluster `r96` SPIX units by segment-level expression and project the domain
-            labels back to the original bins.
+            Cluster SPIX units by segment-level expression and project the domain
+            labels back to the original bins. The default scale is `r96`; if a
+            custom probe ROI is too small for six domains at `r96`, the notebook
+            uses the finest available scale with enough SPIX units.
             """
         ),
         code(
@@ -589,10 +599,30 @@ def build_notebook(data_url: str, data_sha256: str):
                 return means, sizes
 
             with timed_stage("spatial_clustering"):
-                CLUSTER_SCALE = "r96"
+                REQUESTED_CLUSTER_SCALE = os.environ.get("SPIX_WORKSHOP_CLUSTER_SCALE", "r96")
+                N_DOMAINS_REQUESTED = int(os.environ.get("SPIX_WORKSHOP_N_DOMAINS", "6"))
+
+                available_counts = {
+                    str(row["scale_id"]): int(row["observed_obs_n_segments"])
+                    for _, row in segment_index.iterrows()
+                }
+                CLUSTER_SCALE = REQUESTED_CLUSTER_SCALE
+                if available_counts.get(CLUSTER_SCALE, 0) < N_DOMAINS_REQUESTED:
+                    eligible = [
+                        (str(row["scale_id"]), float(row["resolution"]), int(row["observed_obs_n_segments"]))
+                        for _, row in segment_index.iterrows()
+                        if int(row["observed_obs_n_segments"]) >= N_DOMAINS_REQUESTED
+                    ]
+                    if eligible:
+                        CLUSTER_SCALE = sorted(eligible, key=lambda x: x[1])[0][0]
+                    else:
+                        CLUSTER_SCALE = max(available_counts, key=available_counts.get)
+
                 CLUSTER_KEY = f"spix_{CLUSTER_SCALE}"
                 labels = adata.obs[CLUSTER_KEY].cat.codes.to_numpy()
                 segment_means, segment_sizes = aggregate_by_labels(get_expression_layer(adata), labels)
+                if segment_means.shape[0] < 2:
+                    raise ValueError(f"Need at least 2 SPIX units for clustering; got {segment_means.shape[0]} at {CLUSTER_SCALE}")
 
                 variances = segment_means.var(axis=0)
                 top_gene_idx = np.argsort(variances)[-min(800, adata.n_vars):]
@@ -601,10 +631,12 @@ def build_notebook(data_url: str, data_sha256: str):
                 n_pcs = min(15, X_domain.shape[0] - 1, X_domain.shape[1])
                 domain_pcs = PCA(n_components=n_pcs, random_state=7).fit_transform(X_domain)
 
-                N_DOMAINS = 6
+                N_DOMAINS = min(N_DOMAINS_REQUESTED, domain_pcs.shape[0])
                 domain_labels = KMeans(n_clusters=N_DOMAINS, n_init=10, random_state=7).fit_predict(domain_pcs)
                 domain_names = np.asarray([f"D{int(x) + 1}" for x in domain_labels])
-                adata.obs["spatial_domain_r96"] = pd.Categorical(domain_names[labels])
+                SPATIAL_DOMAIN_KEY = f"spatial_domain_{CLUSTER_SCALE}"
+                adata.obs[SPATIAL_DOMAIN_KEY] = pd.Categorical(domain_names[labels])
+                adata.obs["spatial_domain"] = adata.obs[SPATIAL_DOMAIN_KEY]
 
                 domain_summary = (
                     pd.DataFrame({
@@ -618,11 +650,11 @@ def build_notebook(data_url: str, data_sha256: str):
                 )
 
                 fig, ax = plt.subplots(figsize=(5, 4.5))
-                codes = adata.obs["spatial_domain_r96"].cat.codes.to_numpy()
+                codes = adata.obs[SPATIAL_DOMAIN_KEY].cat.codes.to_numpy()
                 ax.scatter(coords[:, 0], coords[:, 1], s=2, c=codes, cmap="tab10", rasterized=True)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
-                ax.set_title("Spatial domains from SPIX r96 units")
+                ax.set_title(f"Spatial domains from SPIX {CLUSTER_SCALE} units")
                 ax.set_xticks([])
                 ax.set_yticks([])
                 plt.show()
@@ -799,6 +831,7 @@ def build_notebook(data_url: str, data_sha256: str):
             ]
             CCI_SEGMENT_SCALE = os.environ.get("SPIX_WORKSHOP_CCI_SEGMENT_SCALE", "r48")
             CCI_RADIUS_UM = float(os.environ.get("SPIX_WORKSHOP_CCI_RADIUS_UM", "160"))
+            CCI_RADIUS_COORD = CCI_RADIUS_UM / PITCH_UM
 
             with timed_stage("cell_cell_interaction_scoring"):
                 lr_pairs = [
@@ -834,7 +867,7 @@ def build_notebook(data_url: str, data_sha256: str):
                 cci_segment_states[segment_state_votes["segment"].to_numpy()] = segment_state_votes["state"].to_numpy()
 
                 tree = cKDTree(cci_segment_centroids)
-                undirected_pairs = tree.query_pairs(r=CCI_RADIUS_UM, output_type="ndarray")
+                undirected_pairs = tree.query_pairs(r=CCI_RADIUS_COORD, output_type="ndarray")
                 if undirected_pairs.size == 0:
                     raise RuntimeError("No spatial neighbor pairs found; increase CCI_RADIUS_UM.")
                 src = np.concatenate([undirected_pairs[:, 0], undirected_pairs[:, 1]])
@@ -875,6 +908,7 @@ def build_notebook(data_url: str, data_sha256: str):
 
             print(f"CCI segment scale: {CCI_SEGMENT_SCALE}")
             print(f"Spatial radius: {CCI_RADIUS_UM} um")
+            print(f"Spatial radius in coordinate units: {CCI_RADIUS_COORD}")
             print(f"Segments used: {n_cci_segments:,}")
             print(f"Directed segment-neighbor edges after removing ambiguous states: {len(src):,}")
             display(pd.DataFrame(lr_pairs, columns=["ligand", "receptor", "lr_pair"]))
@@ -912,7 +946,7 @@ def build_notebook(data_url: str, data_sha256: str):
         code(
             """
             with timed_stage("final_report"):
-                assert "spatial_domain_r96" in adata.obs
+                assert "spatial_domain" in adata.obs
                 assert "workshop_state" in adata.obs
                 assert not segment_index.empty
                 assert rank_df.shape[0] > 0 and score_df.shape[0] > 0
@@ -934,6 +968,8 @@ def build_notebook(data_url: str, data_sha256: str):
                             segment_index["observed_obs_n_segments"],
                         )
                     },
+                    "spatial_cluster_scale": CLUSTER_SCALE,
+                    "spatial_domain_key": SPATIAL_DOMAIN_KEY,
                     "spatial_domain_summary": domain_summary.to_dict(orient="records"),
                     "svg_rank_shape": [int(x) for x in rank_df.shape],
                     "svg_score_shape": [int(x) for x in score_df.shape],
@@ -945,6 +981,7 @@ def build_notebook(data_url: str, data_sha256: str):
                     ],
                     "cci_segment_scale": CCI_SEGMENT_SCALE,
                     "cci_radius_um": CCI_RADIUS_UM,
+                    "cci_radius_coord": CCI_RADIUS_COORD,
                     "cci_top": cci_top.to_dict(orient="records"),
                     "outputs": {
                         "segment_index": str(SEGMENT_DIR / "segments_index.csv"),

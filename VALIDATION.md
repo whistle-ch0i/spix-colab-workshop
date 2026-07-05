@@ -1,6 +1,6 @@
 # Validation
 
-Validation date: 2026-07-05
+Validation date: 2026-07-06
 
 Environment:
 
@@ -9,6 +9,54 @@ Environment:
 - Thread env: `OMP_NUM_THREADS=2`, `OPENBLAS_NUM_THREADS=2`,
   `MKL_NUM_THREADS=2`, `NUMEXPR_NUM_THREADS=2`
 - Notebook executor: `scripts/execute_notebook_code_cells.py`
+
+## Current Choi Whisoo Default
+
+Notebook:
+
+`notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
+
+Default dataset:
+
+`data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
+
+Dataset details:
+
+- Native Visium HD 2 um ROI from full P2 intermediate.
+- Full source shape: `8731400 x 18085`.
+- Workshop shape: `500000 x 2515`.
+- File size: 42.89 MB.
+- SHA-256:
+  `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
+
+Local fallback executor result, 2026-07-06:
+
+- Code cells: 13/13 passed.
+- Total elapsed: 36.56 seconds after local dependencies and data were present.
+- Segment counts: `r48` 900, `r96` 220, `r192` 52, `r384` 12.
+- Spatial clustering scale: `r96`.
+- SVG rank/score tables: `2515 x 4`.
+- Cell-state bins: ambiguous 319782, stromal 85419, secretory 45082,
+  epithelial 29516, immune 18274, proliferation 1927.
+- CCI: `r48` segment-level scoring, 160 um physical radius,
+  80 coordinate-unit radius for 2 um bins, 29172 directed non-ambiguous
+  segment-neighbor edges.
+- Slowest stages:
+  - multiscale SVG Moran: 10.12 seconds
+  - SPIX multiscale segmentation: 9.41 seconds
+  - SPIX embedding/image cache: 9.20 seconds
+
+Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
+
+- Code cells: 13/13 passed.
+- Total elapsed: 29.97 seconds after dependencies were present.
+- SPIX import path:
+  `/tmp/spix_colab_like_env/lib/python3.10/site-packages/SPIX/__init__.py`
+
+The previous 16 um `10000 x 2515` validation is retained below as a legacy
+smoke baseline and as the broader mini-reproduction notebook input.
+
+## Legacy 16 um Mini-Reproduction Notebook
 
 Command:
 
@@ -61,7 +109,7 @@ The fallback executor runs the notebook code cells in order and is sufficient
 for runtime smoke validation, but a final release pass can still use
 `nbconvert` in a fuller notebook environment.
 
-## Choi Whisoo Section Notebook
+## Legacy Choi Whisoo 16 um Notebook
 
 Notebook:
 
@@ -102,9 +150,9 @@ Result:
   - epithelial: 1539 bins
   - secretory: 1299 bins
   - proliferation: 956 bins
-- CCI:
+- CCI, legacy pre-radius-unit-fix result:
   - mode: `r48` SPIX segment-level spatial LR scoring
-  - radius: 160 um
+  - radius setting: 160
   - directed segment-neighbor edges after removing ambiguous states: 1,280,292
   - LR pairs used: 12
 - Slowest stages:
@@ -112,7 +160,7 @@ Result:
   - CCI segment-level scoring: 6.89 seconds
   - SPIX embedding/image cache: 6.79 seconds
 
-Observed Colab CPU run, 2026-07-06:
+Observed legacy Colab CPU run, 2026-07-06:
 
 - Runtime snapshot:
   - `runtime.running_in_colab`: true

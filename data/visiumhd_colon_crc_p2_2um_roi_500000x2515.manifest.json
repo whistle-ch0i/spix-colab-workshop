@@ -1,0 +1,17 @@
+{
+  "bin_size_um": 2.0,
+  "center_pxl_col": 54567.789131453006,
+  "center_pxl_row": 13305.503563443348,
+  "file_size_bytes": 44969030,
+  "full_shape": [
+    8731400,
+    18085
+  ],
+  "n_obs": 500000,
+  "n_vars": 2515,
+  "nnz": 5471738,
+  "output": "data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad",
+  "reference_h5ad": "data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad",
+  "sha256": "ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586",
+  "source_h5ad": "/home/Data_Drive_8TB/chs1151/SPIX_0426/figure_reproduction_spix_api_0622/intermediates/visiumhd_p2_crc_2um/full/visiumhd_p2_crc_2um.full.spix_api_intermediate.h5ad"
+}
