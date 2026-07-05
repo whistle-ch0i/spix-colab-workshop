@@ -212,7 +212,42 @@ def build_notebook(data_url: str, data_sha256: str):
                     "or install it with `python -m pip install -e /path/to/SPIX`."
                 )
 
+            def patch_spix_visualization_imports_for_colab():
+                if not IN_COLAB:
+                    return
+                spec = importlib.util.find_spec("SPIX")
+                if spec is None or spec.origin is None:
+                    return
+                init_path = Path(spec.origin).parent / "visualization" / "__init__.py"
+                if not init_path.exists():
+                    return
+                text = init_path.read_text()
+                if "workshop-safe optional visualization imports" in text:
+                    return
+                if "from .scale_hotspot_biology import *" not in text:
+                    return
+                init_path.write_text(
+                    "\\n".join([
+                        "from .plotting import *",
+                        "from .origin_display import *",
+                        "",
+                        "# workshop-safe optional visualization imports",
+                        "for _module in (",
+                        "    'scale_hotspot_biology',",
+                        "    'figure4_hotspot_story',",
+                        "    'figure4_hotspot_0509',",
+                        "):",
+                        "    try:",
+                        "        exec(f'from .{_module} import *')",
+                        "    except ModuleNotFoundError:",
+                        "        pass",
+                        "",
+                    ])
+                )
+                print("Patched SPIX visualization imports for Colab:", init_path)
+
             ensure_spix_importable()
+            patch_spix_visualization_imports_for_colab()
 
             import hashlib
             import urllib.request
