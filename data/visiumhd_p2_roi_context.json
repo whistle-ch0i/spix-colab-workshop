@@ -1,0 +1,20 @@
+{
+  "downsample_points": 120000,
+  "full_h5ad": "/home/Data_Drive_8TB/chs1151/SPIX_0426/figure_reproduction_spix_api_0622/intermediates/visiumhd_p2_crc_2um/full/visiumhd_p2_crc_2um.full.spix_api_intermediate.h5ad",
+  "full_shape": [
+    8731400,
+    18085
+  ],
+  "roi_bbox": {
+    "x_max": 57478.77608133596,
+    "x_min": 51656.365215328,
+    "y_max": 16217.391277591321,
+    "y_min": 10394.283380093462
+  },
+  "roi_h5ad": "data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad",
+  "roi_shape": [
+    500000,
+    2515
+  ],
+  "seed": 7
+}

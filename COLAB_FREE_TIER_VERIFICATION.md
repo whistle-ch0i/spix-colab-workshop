@@ -10,7 +10,9 @@ Official Colab FAQ checked on 2026-07-05:
 1. Push the workshop folder and data file to the branch used by the notebook.
 2. Confirm the notebook data URL resolves:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
-3. Confirm the SPIX install URL in the notebook points to a branch containing
+3. Confirm the ROI context URL resolves:
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+4. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
 ## Free-Tier Condition
@@ -40,14 +42,16 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 - Notebook runs on CPU runtime with no GPU requirement.
 - Data SHA-256 check passes.
 - The practical notebook completes all of its stages:
-  - standard-tool preprocessing with Scanpy and Squidpy,
-  - SVG with Squidpy Moran's I,
-  - spatial clustering with Scanpy Leiden and marker ranking,
-  - cell-cell interaction with Squidpy `ligrec`,
+  - ROI overview plot and 8 um pseudobulk construction,
+  - SVG with HVG comparison and Squidpy Moran's I,
+  - spatial domain comparison with expression-only baseline, BANKSY-style
+    neighborhood features, and SpaGCN,
+  - cell-cell interaction with neighborhood enrichment and Squidpy `ligrec`,
   - SPIX manuscript-style embedding, graph smoothing, equalization, image
     cache,
   - SPIX `image_plot_slic` multiscale segmentation and multiscale Moran/SVG.
-- Final cluster tables, SVG table, CCI table, and SPIX segment counts are non-empty.
+- Final SVG table, domain tables, CCI tables, and SPIX segment counts are
+  non-empty.
 - Total elapsed runtime is acceptable for the workshop slot.
 
 ## Current Default Preflight Result
@@ -55,33 +59,42 @@ for this workshop was 2 CPUs and 12.67 GB memory.
 Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Data:
-  - shape: `500000 x 2515`
+  - 2 um input shape: `500000 x 2515`
+  - 8 um pseudobulk shape: `31535 x 2515`
+  - SpaGCN comparison panel: `3500 x 2515`
   - file size: 42.89 MB
   - SHA-256:
     `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
+  - ROI context SHA-256:
+    `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 119.53 seconds
-  - code cells: 26/26 passed
+  - local elapsed after dependencies and data were present: 200.02 seconds
+  - code cells: 30/30 passed
 - Output checks:
-  - standard-tool teaching subset: `47039 x 2515`
-  - Scanpy Leiden clusters: 13 at `n_neighbors=30`, `resolution=0.01`
-  - top Squidpy Moran SVG examples: `OLFM4`, `PIGR`, `REG1A`, `MUC2`,
-    `TAGLN`
+  - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
+    `JCHAIN`
+  - Top 100 HVG/SVG overlap: 3 genes
+  - spatial domain methods: expression-only baseline, BANKSY-style
+    neighborhood features, and SpaGCN
+  - neighborhood enrichment: 50 permutations on BANKSY-style domains
   - Squidpy `ligrec`: 11 ligand-receptor candidates, 20 permutations,
     top examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`
   - SPIX section uses the full `500000 x 2515` ROI
   - SPIX follows the VisiumHD P2 manuscript/reproduction path: 30-dimensional
     PCA/log-normalized embedding, graph smoothing before equalization,
-    `image_plot_slic` segmentation, and multiscale Moran/SVG
-  - default SPIX tuning is off for workshop runtime; the fixed fallback values
-    are `graph_k=20`, `graph_t=10`, `sleft=2.0`, `sright=2.0`
-  - manuscript-style tuning sweeps can be enabled with
-    `SPIX_WORKSHOP_SPIX_RUN_TUNING=1`
+    automatic equalization, `image_plot_slic` segmentation, and multiscale
+    Moran/SVG
+  - automatic smoothing recommendation: `graph_k=5`, `graph_t=30`
+  - automatic equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
+    `sright=0.5`
   - SPIX segment counts:
-    `r2` 500000, `r8` 32146, `r16` 8012, `r30` 2272, `r40` 1277,
-    `r50` 806, `r80` 312, `r100` 200, `r150` 89, `r200` 51,
-    `r250` 29, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5
+    `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
+    `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
+    `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5
+  - slowest local stages: 8 um preprocessing 47.67 sec, SPIX multiscale
+    segmentation 42.64 sec, equalization sweep 30.77 sec, smoothing sweep
+    21.13 sec, SPIX multiscale Moran/SVG 17.64 sec
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

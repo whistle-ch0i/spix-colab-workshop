@@ -1,10 +1,10 @@
 # KOGO Spatial Transcriptomics Practice
 
 Materials for the spatial transcriptomics practical session in the 2026 KOGO
-statistical genetics workshop. The live Colab file uses a native-resolution
-2 um ROI from the public 10x Genomics Visium HD Human Colon Cancer dataset, so
-participants can work with data close to the manuscript setting without loading
-the full 8.7M-bin slide.
+statistical genetics workshop. The live Colab file uses a bounded 2 um ROI from
+the public 10x Genomics Visium HD Human Colon Cancer P2 dataset. The notebook
+shows where the ROI sits in the full section, runs standard spatial workflows on
+8 um pseudobulk, and then runs SPIX on the native 2 um ROI.
 
 Main practical notebook:
 
@@ -12,11 +12,15 @@ Main practical notebook:
 
 Session flow:
 
-- SVG with Squidpy Moran's I
-- spatial clustering with Scanpy PCA-neighbors-Leiden
-- cell-cell interaction with Squidpy `ligrec`
-- SPIX VisiumHD P2 manuscript-style graph smoothing, equalization,
-  `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG
+- ROI overview: full P2 downsample plus selected ROI box
+- 8 um pseudobulk from native 2 um bins
+- SVG: HVG versus Squidpy Moran's I
+- spatial domain comparison: expression-only baseline, BANKSY-style
+  neighborhood features, and SpaGCN
+- cell-cell interaction: spatial neighborhood enrichment plus Squidpy `ligrec`
+- SPIX: VisiumHD P2-style embedding, automatic graph smoothing selection,
+  automatic equalization selection, `image_plot_slic` multiscale segmentation,
+  and multiscale Moran/SVG
 
 The notebook code is intentionally split into short stepwise cells for a
 hands-on class. Most cells can be run from top to bottom without editing.
@@ -39,7 +43,7 @@ Source dataset:
 The source page lists this as a Visium HD Spatial Gene Expression Human Colon
 Cancer dataset analyzed with Space Ranger 4.1.0 and released under CC BY 4.0.
 
-The default practical file is a derived 2 um subset:
+The default practical file is a derived 2 um ROI:
 
 `data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
@@ -48,10 +52,14 @@ same marker-diverse workshop gene set. The full 2 um P2 source has
 `8731400 x 18085` observations/features and is intentionally not used for the
 live exercise.
 
-For workshop stability, the first three standard-tool sections use a central
-spatially contiguous teaching subset from this file. The current default is
-47,039 non-empty 2 um bins after zero-count filtering. The final SPIX section
-uses the full 500,000-bin ROI.
+The notebook builds a `31535 x 2515` 8 um pseudobulk object from this ROI for
+SVG, spatial domain, and CCI sections. The SpaGCN comparison uses a central
+3,500-bin 8 um panel because SpaGCN builds a dense spatial adjacency matrix.
+The final SPIX section uses the full 500,000-bin 2 um ROI.
+
+The ROI overview plot uses:
+
+`data/visiumhd_p2_roi_context_downsample.csv`
 
 The full P2 object was explicitly probed on 2026-07-06. Under a 12 GiB
 free-tier-style memory cap, the full in-memory read failed before SPIX analysis,
@@ -103,7 +111,8 @@ python scripts/build_visiumhd_colon_roi_h5ad.py \
 Regenerate the practical notebook after changing the data file or default URLs:
 
 ```bash
-python3 scripts/write_korean_workshop_notebook.py
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/write_korean_workshop_notebook.py
 ```
 
 ## Local Check
@@ -142,8 +151,13 @@ The notebook expects this raw data URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
-Before a live run, make sure the data file exists at that URL. If not, set
-`SPIX_WORKSHOP_DATA_URL` in the first notebook cell.
+It also expects this ROI context URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+
+Before a live run, make sure both files exist at those URLs. If not, set
+`SPIX_WORKSHOP_DATA_URL` and `SPIX_WORKSHOP_ROI_CONTEXT_URL` in the first
+notebook cell.
 
 ## Colab Notes
 
@@ -152,10 +166,9 @@ Before a live run, make sure the data file exists at that URL. If not, set
 - Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
   for workshop participants. The first notebook cell records `cpu_count`,
   memory, and disk space for the actual runtime.
-- Keep participant edits focused on `SPIX_WORKSHOP_TOOL_MAX_OBS`,
-  `SPIX_WORKSHOP_SCANPY_RESOLUTION`, `SPIX_WORKSHOP_LIGREC_PERMUTATIONS`,
-  `SPIX_WORKSHOP_RESOLUTIONS_UM`, `SPIX_WORKSHOP_SPIX_GRAPH_K`,
-  `SPIX_WORKSHOP_SPIX_GRAPH_T`, `SPIX_WORKSHOP_SPIX_EQ_SLEFT`,
-  `SPIX_WORKSHOP_SPIX_EQ_SRIGHT`, `SPIX_WORKSHOP_SPIX_RUN_TUNING`, `N_JOBS`,
-  and gene lists.
+- The default SPIX section runs smoothing/equalization sweeps. For a shortened
+  rehearsal, set `SPIX_WORKSHOP_SPIX_RUN_TUNING=0`.
+- Keep participant edits focused on `SPIX_WORKSHOP_N_JOBS`,
+  `SPIX_WORKSHOP_DOMAIN_MAX_OBS`, `SPIX_WORKSHOP_SPIX_RUN_TUNING`, and selected
+  plotting genes.
 - If Colab is slow or disconnects, restart the runtime and run cells from the top.

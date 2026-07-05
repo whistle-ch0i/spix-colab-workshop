@@ -16,6 +16,10 @@ Data URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
 
+ROI context URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_downsample.csv`
+
 ## Run
 
 1. Open the Colab URL with a free-tier Google account.
@@ -32,12 +36,17 @@ or an enterprise runtime.
 - `runtime.running_in_colab` is `true`.
 - `runtime.thread_cap` is `2`.
 - `validation_passed` is `true`.
-- The notebook completes the SVG, spatial clustering, cell-cell interaction,
+- The notebook completes the SVG, spatial domain, cell-cell interaction,
   and SPIX sections.
 - The final report contains stage timings.
+- The standard sections use the 8 um pseudobulk object made from the 2 um ROI.
+- The spatial domain section includes expression-only baseline, BANKSY-style
+  neighborhood features, and SpaGCN.
+- The CCI section includes spatial neighborhood enrichment and Squidpy `ligrec`.
 - The SPIX section reports the VisiumHD P2-style path:
   30-dimensional embedding, graph smoothing before equalization,
   `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG.
+- The default SPIX run uses automatic smoothing/equalization parameter sweeps.
 - Total time is acceptable for the workshop slot.
 
 ## Current Default Local Check
@@ -45,19 +54,31 @@ or an enterprise runtime.
 Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
+- 8 um pseudobulk: `31535 x 2515`.
+- SpaGCN comparison panel: `3500 x 2515`.
+- ROI context SHA-256:
+  `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
-- Code cells: 26/26 passed.
-- Local elapsed time after dependencies and data were present: 119.53 seconds.
-- Standard-tool teaching subset: `47039 x 2515`.
-- Scanpy Leiden clusters: 13 at `n_neighbors=30`, `resolution=0.01`.
-- Squidpy Moran top examples: `OLFM4`, `PIGR`, `REG1A`, `MUC2`, `TAGLN`.
-- Squidpy `ligrec`: 11 LR candidates, 20 permutations.
+- Code cells: 30/30 passed.
+- Local elapsed time after dependencies and data were present: 200.02 seconds.
+- Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `JCHAIN`.
+- Top 100 HVG/SVG overlap: 3 genes.
+- Spatial domain methods: expression-only baseline, BANKSY-style neighborhood
+  features, and SpaGCN.
+- CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
+  20 permutations.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
   equalization, `image_plot_slic` segmentation, and multiscale Moran/SVG.
+- Automatic SPIX smoothing recommendation: `graph_k=5`, `graph_t=30`.
+- Automatic SPIX equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
+  `sright=0.5`.
 - SPIX segment counts:
-  `r2` 500000, `r8` 32146, `r16` 8012, `r30` 2272, `r40` 1277,
-  `r50` 806, `r80` 312, `r100` 200, `r150` 89, `r200` 51,
-  `r250` 29, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5.
+  `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
+  `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
+  `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5.
+- Slowest local stages: 8 um preprocessing 47.67 sec, SPIX multiscale
+  segmentation 42.64 sec, equalization sweep 30.77 sec, smoothing sweep
+  21.13 sec, SPIX multiscale Moran/SVG 17.64 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.

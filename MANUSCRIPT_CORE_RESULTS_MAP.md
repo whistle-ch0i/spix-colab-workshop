@@ -18,10 +18,10 @@ These parts are small enough for the Colab notebook.
 
 | Manuscript result | Workshop analogue | Why it is appropriate |
 |---|---|---|
-| Fig2A: Visium HD multiscale SPIX segmentation | Run SPIX segmentation at 48, 96, 192, and 384 um | Same count/coordinate to embedding image to SLIC-style SPIX route, but on a bounded ROI |
-| Fig3A and sFig9: scale-response SVG trajectories | Compute multiscale Moran's I and plot top-gene trajectories | Same SVG ranking concept; smaller gene/spot set for live execution |
-| Fig3B and sFig8: native and SPIX expression maps | Plot native expression beside segment-averaged expression for representative genes | Same visual interpretation logic without requiring full-section raw data |
-| Fig5A-F concept: expression contrast is not spatial organization | Plot mean expression versus peak multiscale Moran's I in one ROI | Concept demo only; does not replace paired NAT/CRC analysis |
+| Fig2A: Visium HD multiscale SPIX segmentation | Run SPIX segmentation from 2 to 500 um on a bounded P2 ROI | Same count/coordinate to embedding image to SLIC-style SPIX route, with automatic smoothing/equalization and compactness selection |
+| Fig3A and sFig9: scale-response SVG trajectories | Compute SPIX multiscale Moran's I over the same 2 um ROI | Same scale-aware SVG ranking concept; bounded ROI for live execution |
+| Fig3B and sFig8: native and SPIX expression maps | Show selected SVG and representative SPIX scale maps | Same visual interpretation logic without requiring full-section raw data |
+| Fig5A-F concept: expression contrast is not spatial organization | Compare HVG rank and SVG rank on 8 um pseudobulk | Concept demo only; does not replace paired NAT/CRC analysis |
 
 Simple way to phrase it during the workshop:
 
@@ -46,10 +46,12 @@ not in the live Colab run.
 
 - The notebook runs top-to-bottom with `N_JOBS=2`.
 - The compact `.h5ad` checksum matches the manifest.
+- The ROI overview plot renders the full P2 downsample and selected ROI box.
+- Standard-tool sections use 8 um pseudobulk from the native 2 um ROI.
 - Segment counts are positive and decrease at coarser scales.
 - Moran rank and score tables are non-empty.
-- The notebook reports best-scale counts and representative genes.
-- Native versus SPIX-averaged expression maps render for multiple genes.
+- The notebook reports SVG/HVG comparison, spatial domain method comparison,
+  CCI tables, and SPIX scale summaries.
 - The final JSON report records runtime, dataset shape, segment counts, and
   manuscript reference scope.
 
