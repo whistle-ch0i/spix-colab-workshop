@@ -434,6 +434,7 @@ def build_notebook(data_url: str, data_sha256: str):
                     runtime_fill_holes=False,
                     resolve_center_collisions=True,
                     store="memmap",
+                    cache_storage="float32_memmap",
                     memmap_dir=str(OUTPUT_DIR / "image_cache"),
                     show=False,
                     verbose=True,
