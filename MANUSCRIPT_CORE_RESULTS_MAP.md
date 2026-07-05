@@ -1,8 +1,8 @@
-# Manuscript Core Results Map
+# Manuscript Link
 
-This workshop is designed as a Colab-safe mini-reproduction of the SPIX
-manuscript logic, not as a full manuscript rebuild. The full rebuild remains the
-separate local reference package maintained with the manuscript analysis files.
+The live notebook is not a full paper rebuild. It is the small version we can run
+in a workshop room. The full panel reproduction stays with the manuscript
+analysis package.
 
 Primary reference files:
 
@@ -12,10 +12,9 @@ Primary reference files:
 - `plots/main/`
 - `plots/supplementary/`
 
-## Runs Live In Free Colab
+## Run Live
 
-These are the results this workshop should reproduce directly from the compact
-Visium HD CRC P2 ROI.
+These parts are small enough for the Colab notebook.
 
 | Manuscript result | Workshop analogue | Why it is appropriate |
 |---|---|---|
@@ -24,15 +23,15 @@ Visium HD CRC P2 ROI.
 | Fig3B and sFig8: native and SPIX expression maps | Plot native expression beside segment-averaged expression for representative genes | Same visual interpretation logic without requiring full-section raw data |
 | Fig5A-F concept: expression contrast is not spatial organization | Plot mean expression versus peak multiscale Moran's I in one ROI | Concept demo only; does not replace paired NAT/CRC analysis |
 
-Expected participant-facing message:
+Simple way to phrase it during the workshop:
 
-> This notebook reproduces the manuscript's computational logic on a small public
-> ROI. It is meant to be executable in a room of free Colab users.
+> We are running the same SPIX analysis idea on a small public Visium HD ROI, so
+> everyone can finish the workflow during the session.
 
-## Show As Reference, Do Not Run Live
+## Show As Reference
 
-These results are important to the paper but should be shown from the full
-reproduction package during the workshop.
+These are important paper results, but they belong in the full local pipeline,
+not in the live Colab run.
 
 | Manuscript result | Reason not to run in free Colab | Reference route |
 |---|---|---|
@@ -43,7 +42,7 @@ reproduction package during the workshop.
 | Fig5A-G paired P5 NAT/CRC analysis | Requires two full Visium HD sections and paired scale-gain workflow | `visiumhd_p5_scale_gain_manifest.tsv` and Fig5 plots |
 | sFig17-sFig19 cross-slide validation | Target-matched multislide route and saved CellTypist context inputs | `sFig17_19_multislide_intermediate_audit.tsv` and related manifests |
 
-## Workshop Acceptance Criteria
+## Acceptance Criteria
 
 - The notebook runs top-to-bottom with `N_JOBS=2`.
 - The compact `.h5ad` checksum matches the manifest.
@@ -56,8 +55,7 @@ reproduction package during the workshop.
 
 ## Boundary
 
-Do not claim that the Colab notebook exactly reproduces every manuscript panel.
-The accurate claim is:
+Use this wording if asked what the notebook proves:
 
 > The Colab notebook reproduces the core SPIX multiscale analysis mechanics on a
 > public Visium HD ROI, while the full manuscript panels are reproduced in the

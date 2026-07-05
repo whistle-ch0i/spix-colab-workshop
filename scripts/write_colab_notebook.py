@@ -70,12 +70,11 @@ def build_notebook(data_url: str, data_sha256: str):
     nb["cells"] = [
         md(
             """
-            # SPIX Visium HD Manuscript Mini-Reproduction Workshop
+            # SPIX Visium HD Mini-Reproduction
 
-            This notebook is a small, CPU-only SPIX workshop for free Google Colab
-            runtimes. It uses a marker-diverse ROI from the 10x Genomics Visium HD
-            Human Colon Cancer public dataset and reproduces the core mechanics behind
-            the manuscript's multiscale results in a bounded form:
+            A compact Colab version of the Visium HD multiscale analysis. The full
+            slide is too large for a live free-tier exercise, so we use a marker-diverse
+            ROI from the public 10x Genomics colon cancer dataset.
 
             - Fig2A-style tissue-aware multiscale SPIX units.
             - Fig3A/sFig9-style scale-response SVG trajectories.
@@ -83,15 +82,12 @@ def build_notebook(data_url: str, data_sha256: str):
             - A Fig5-style check that spatial organization can change by scale and is
               not the same thing as mean expression.
 
-            Runtime target: 20-30 minutes on a fresh Colab CPU runtime. Use **Runtime >
-            Change runtime type > Hardware accelerator: None**.
+            Use a CPU runtime. The last cell writes a small timing report.
             """
         ),
         md(
             """
-            ## Goal
-
-            By the end of this notebook you will have:
+            ## What We Will Do
 
             1. Loaded a small Visium HD ROI as an `AnnData` object.
             2. Converted transcriptomic variation into an SPIX embedding image.
@@ -99,10 +95,8 @@ def build_notebook(data_url: str, data_sha256: str):
             4. Ranked spatially variable genes across scales with Moran's I.
             5. Interpreted why the preferred spatial scale can differ by gene.
 
-            This is a **mini-reproduction**, not a full paper rebuild. The full
-            manuscript reproduction package uses full Visium HD, MOSTA, SPATCH,
-            MERFISH, and paired P5 NAT/CRC inputs outside Colab. Here we keep the
-            runnable part small enough for many first-time participants.
+            This is a mini-reproduction: enough to run live, small enough that a room
+            of first-time Colab users should not spend the session waiting on data.
             """
         ),
         md(
@@ -122,9 +116,7 @@ def build_notebook(data_url: str, data_sha256: str):
             """
             ## Setup
 
-            The notebook intentionally caps CPU threads. Colab resources are not guaranteed,
-            so the defaults are conservative. If you run this on a workstation, you can raise
-            `N_JOBS`, but keep it at 32 or below unless you explicitly reserved more cores.
+            The notebook caps CPU threads. Keep the default for the free-tier test.
             """
         ),
         code(
@@ -243,12 +235,9 @@ def build_notebook(data_url: str, data_sha256: str):
             """
             ## Data
 
-            The default input is a compact `.h5ad` derived from the 10x Genomics
-            Visium HD Human Colon Cancer public dataset. It keeps a spatially contiguous
-            `square_016um` ROI selected to include epithelial/secretory, immune,
-            stromal, and proliferative signal, with a bounded gene set so that all
-            participants can run the same workflow without downloading the full Space
-            Ranger output.
+            The bundled `.h5ad` is a spatially contiguous `square_016um` ROI with a
+            bounded gene set. It was chosen to include epithelial/secretory, immune,
+            stromal, and proliferative signal.
             """
         ),
         code(
@@ -341,13 +330,9 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## Steps
+            ## 1. Build The SPIX Embedding Image
 
-            ### 1. Build the SPIX embedding image
-
-            SPIX first converts the count matrix and coordinates into a low-dimensional
-            transcriptomic embedding, then equalizes the embedding dimensions and caches
-            them as an image-like representation for segmentation.
+            Convert expression variation into an embedding image for segmentation.
             """
         ),
         code(
@@ -401,10 +386,9 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ### 2. Generate multiscale SPIX units
+            ## 2. Generate Multiscale SPIX Units
 
-            The scale values are in microns. This ROI uses 16 µm Visium HD bins, so
-            48, 96, and 192 µm give a compact fine/mid/coarse example.
+            The scale values are in microns. This ROI uses 16 um Visium HD bins.
             """
         ),
         code(
@@ -483,10 +467,9 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ### 3. Rank spatially variable genes across scales
+            ## 3. Rank SVGs Across Scales
 
-            SPIX collapses bins into each segmentation, builds a segment-contact graph,
-            and computes Moran's I. The fast engine is used here for workshop speed.
+            Aggregate bins to each SPIX scale and compute Moran's I.
             """
         ),
         code(
@@ -577,11 +560,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ### 4. Native and SPIX-averaged expression maps
+            ## 4. Native And SPIX-Averaged Expression Maps
 
-            These plots mirror the logic of manuscript expression-map panels: native
-            bin-level expression is shown beside the expression averaged over the scale
-            where that gene has its strongest spatial autocorrelation in this ROI.
+            Plot native expression beside the SPIX-averaged expression at the gene's
+            strongest scale in this ROI.
             """
         ),
         code(
@@ -654,12 +636,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ### 5. Spatial organization versus mean expression
+            ## 5. Spatial Organization Versus Mean Expression
 
-            The paired NAT/CRC analysis in the manuscript requires full sections and is
-            not a free-Colab exercise. This small ROI still lets us show the key idea:
-            a gene's mean expression and its scale-resolved spatial organization are
-            related but not interchangeable.
+            A small single-section version of the same idea: expression abundance and
+            spatial organization are related, but they are not the same measurement.
             """
         ),
         code(
@@ -706,9 +686,7 @@ def build_notebook(data_url: str, data_sha256: str):
             """
             ## Checks
 
-            These quick checks make the notebook suitable for a workshop handoff:
-            segment labels exist for every scale, the segment counts decrease with
-            coarser scales, and the Moran tables are non-empty.
+            Basic checks before trusting the run.
             """
         ),
         code(

@@ -1,35 +1,30 @@
 # SPIX Colab Workshop
 
-This workshop is a small CPU-only SPIX mini-reproduction for free Google Colab
-runtimes. It uses a compact ROI derived from the public 10x Genomics Visium HD
-Human Colon Cancer dataset and walks through:
+Colab-ready SPIX materials for a short hands-on session. The live notebook uses
+a compact ROI from the public 10x Genomics Visium HD Human Colon Cancer dataset,
+so participants can run the workflow on a free CPU runtime instead of waiting on
+the full 2 um slide.
 
-1. loading a small `AnnData` object,
-2. building an SPIX embedding image,
-3. exporting fine/mid/coarse SPIX segmentations, and
-4. ranking spatially variable genes across scales with Moran's I,
-5. plotting native versus SPIX-averaged expression maps, and
-6. contrasting expression abundance with scale-resolved spatial organization.
+The main workshop thread is:
 
-The goal is to reproduce the manuscript's core multiscale analysis logic in a
-format that many workshop participants can run live. The full manuscript panel
-reproduction remains a separate local reference package outside this public
-workshop repository.
+- build SPIX multiscale units,
+- cluster SPIX units into spatial domains,
+- rank scale-response SVGs,
+- score a small spatial ligand-receptor panel,
+- save a timing report for Colab validation.
 
-The original manuscript mini-reproduction notebook is:
-
-`notebooks/SPIX_VisiumHD_multiscale_colab.ipynb`
-
-The Choi Whisoo section notebook for **SPIX, spatial clustering, SVG, and
-cell-cell interaction** is:
+Start here:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
+
+A second notebook keeps the broader manuscript mini-reproduction flow:
+
+`notebooks/SPIX_VisiumHD_multiscale_colab.ipynb`
 
 For the panel-by-panel boundary between live Colab execution and reference-only
 full reproduction, see `MANUSCRIPT_CORE_RESULTS_MAP.md`.
 
-For the direct Colab free-tier run protocol, see
-`COLAB_LIVE_RUN_PROTOCOL.md`.
+For the free-tier check, use `COLAB_LIVE_RUN_PROTOCOL.md`.
 
 ## Dataset
 
@@ -37,22 +32,21 @@ Source dataset:
 
 <https://www.10xgenomics.com/datasets/visium-hd-cytassist-11mm-human-colon-cancer-HE>
 
-The source page lists the dataset as a Visium HD Spatial Gene Expression Human
-Colon Cancer dataset analyzed with Space Ranger 4.1.0 and licensed under
-Creative Commons Attribution 4.0 International.
+The source page lists this as a Visium HD Spatial Gene Expression Human Colon
+Cancer dataset analyzed with Space Ranger 4.1.0 and released under CC BY 4.0.
 
 The default workshop file is a derived subset:
 
 `data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad`
 
-It keeps a spatially contiguous `square_016um` ROI selected for mixed
-epithelial/secretory, immune, stromal, and proliferative marker signal, plus a
-bounded gene set. This is intentional: full Visium HD outputs are too large and
-too variable for a room of free Colab runtimes.
+It is a spatially contiguous `square_016um` ROI with epithelial/secretory,
+immune, stromal, and proliferative signal. The full 2 um slide is intentionally
+not used for the live exercise.
 
-## Build The Data File
+## Rebuild The Data File
 
-Run from this workshop repository root:
+Only needed if you want to recreate the bundled `.h5ad` from Space Ranger
+outputs.
 
 ```bash
 CONDA_NO_PLUGINS=true \
@@ -70,10 +64,9 @@ python scripts/build_visiumhd_colon_roi_h5ad.py \
   --candidate-count 512
 ```
 
-## Regenerate The Notebook
+## Regenerate Notebooks
 
-After the data file exists, regenerate the notebook so it embeds the current
-SHA-256 checksum:
+Regenerate after changing the data file or default URLs:
 
 ```bash
 CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
@@ -82,10 +75,9 @@ python scripts/write_colab_notebook.py \
   --data-file data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad
 ```
 
-## Validate Locally
+## Local Check
 
-Execute the notebook top-to-bottom before sharing. In a full Jupyter
-environment, use:
+Run this before a workshop if you changed the notebooks:
 
 ```bash
 CONDA_NO_PLUGINS=true \
@@ -96,8 +88,7 @@ jupyter nbconvert --execute --to notebook --inplace \
   notebooks/SPIX_VisiumHD_multiscale_colab.ipynb
 ```
 
-If `nbconvert`, `nbclient`, or `nbformat` are not installed, use the bundled
-fallback executor from the workshop directory:
+If `nbconvert`, `nbclient`, or `nbformat` are not installed:
 
 ```bash
 CONDA_NO_PLUGINS=true \
@@ -110,26 +101,20 @@ python scripts/execute_notebook_code_cells.py \
   --workdir .
 ```
 
-Current local validation is recorded in `VALIDATION.md`.
+Current numbers are in `VALIDATION.md`.
 
 ## Publish For Colab
 
-The notebook default data URL points at the GitHub raw URL for this repository:
+The notebooks expect this raw data URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_square016um_markerdiverse_roi_10000x2500.h5ad`
 
-Before a live workshop, make sure the data file has been pushed to the branch
-used by that URL, or set `SPIX_WORKSHOP_DATA_URL` in the first notebook cell to
-a GitHub Release, Zenodo, or Google Cloud Storage URL.
-
-The true free-tier check is intentionally separate from local validation because
-Colab runtime allocation requires an interactive Google account. Use
-`COLAB_FREE_TIER_VERIFICATION.md` for the release checklist.
+Before a live run, make sure the data file exists at that URL. If not, set
+`SPIX_WORKSHOP_DATA_URL` in the first notebook cell.
 
 ## Colab Notes
 
 - Use CPU runtime: `Runtime > Change runtime type > Hardware accelerator: None`.
 - The notebook defaults to `N_JOBS=2`.
-- Keep participant edits focused on `RESOLUTIONS_UM`, `N_JOBS`, and the gene
-  tables. Avoid asking every participant to download full Visium HD outputs.
+- Keep participant edits focused on `RESOLUTIONS_UM`, `N_JOBS`, and gene lists.
 - If Colab is slow or disconnects, restart the runtime and run cells from the top.

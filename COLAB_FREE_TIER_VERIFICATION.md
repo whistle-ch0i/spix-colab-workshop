@@ -1,8 +1,6 @@
-# Colab Free-Tier Verification Checklist
+# Colab Free-Tier Check
 
-This file records the actual Google Colab validation protocol. Local smoke tests
-are useful, but they do not prove free-tier Colab success because Google allocates
-Colab runtimes only after an interactive Google account session.
+Use this after the repo is pushed and the notebook URL is live.
 
 Official Colab FAQ checked on 2026-07-05:
 <https://research.google.com/colaboratory/faq.html>
@@ -15,12 +13,10 @@ Official Colab FAQ checked on 2026-07-05:
 3. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
-## Manual Free-Tier Condition
+## Free-Tier Condition
 
-Use a Google account without active Colab Pro, Pro+, Pay As You Go compute units,
-or other paid/enterprise runtime allocation. Colab does not expose a reliable
-programmatic flag for account tier inside the notebook, so this must be checked
-manually in the Colab UI/account state.
+Use a Google account without active Colab Pro, Pro+, Pay As You Go compute
+units, or enterprise allocation.
 
 ## Run
 
@@ -49,7 +45,7 @@ manually in the Colab UI/account state.
 - Final segment counts and rank-table shapes are non-empty.
 - Total elapsed runtime is acceptable for the workshop slot.
 
-## Expected Local Baseline
+## Local Baseline
 
 The local low-resource smoke run with `N_JOBS=2` completed all 14 code cells
 using the marker-diverse `10000 x 2515` dataset. It produced:
@@ -66,5 +62,5 @@ using the marker-diverse `10000 x 2515` dataset. It produced:
 - elapsed runtime after dependencies and local data were already present:
   21.42 seconds
 
-Actual Colab runtime may differ because Google states that free Colab resources
-are not guaranteed and limits can fluctuate.
+The Colab number can differ. A fresh runtime has to install packages and
+download the data.

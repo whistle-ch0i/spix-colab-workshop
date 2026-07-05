@@ -71,42 +71,39 @@ def build_notebook(data_url: str, data_sha256: str):
     nb["cells"] = [
         md(
             """
-            # Choi Whisoo Section: SPIX, Spatial Clustering, SVG, and Cell-Cell Interaction
+            # SPIX Colab: Clustering, SVGs, and Spatial LR Signals
 
-            This notebook is the Colab-free-tier version of the analysis section:
+            Hands-on notebook for Choi Whisoo's workshop part.
 
-            1. **SPIX**: build transcriptomic embedding images and multiscale superpixels.
-            2. **Spatial clustering**: cluster SPIX units into spatial domains.
-            3. **SVG**: rank scale-response spatially variable genes with Moran's I.
-            4. **Cell-cell interaction**: score spatial ligand-receptor candidates across
-               neighboring state labels.
+            Start from a small Visium HD colon cancer ROI and walk through four pieces
+            from the manuscript analysis:
 
-            The notebook uses a compact public Visium HD CRC P2 ROI instead of the full
-            2 µm slide, because the full slide has millions of bins and is not a stable
-            live input for many free Colab users. Every major stage records wall-clock
-            time so the final cell can be used as a Colab validation report.
+            - SPIX multiscale units
+            - spatial clustering
+            - scale-response SVGs
+            - spatial ligand-receptor scoring
+
+            The full 2 um slide is too large for a room of free Colab runtimes. This
+            version uses a compact public ROI and records timing at each stage.
             """
         ),
         md(
             """
-            ## Key Assumptions
+            ## Before Running
 
-            - Use **CPU runtime**: `Runtime > Change runtime type > Hardware accelerator: None`.
-            - Keep `N_JOBS=2` for free-tier testing unless you intentionally benchmark a
-              different setting.
-            - Cell-cell interaction here is a **workshop-scale spatial LR scoring
-              analysis**, not a full LIANA rerun. It is designed to demonstrate the
-              logic in a bounded Colab runtime.
-            - The full manuscript reproduction remains the local reference package for
-              full-resolution panels and heavy analyses.
+            Use a CPU runtime and keep `N_JOBS=2` for the free-tier check.
+
+            The cell-cell interaction section is deliberately small: it scores a curated
+            ligand-receptor panel across neighboring SPIX/state regions. The heavier
+            LIANA-style analysis is kept for the full manuscript pipeline.
             """
         ),
         md(
             """
-            ## 0. Setup And Timing
+            ## 0. Setup
 
-            This cell caps threads and defines a timing helper. The final report stores
-            the environment, elapsed time, stage timings, and pass/fail checks.
+            The timing helper below is here for the Colab check. The last cell writes a
+            small JSON report with the runtime and stage timings.
             """
         ),
         code(
@@ -195,10 +192,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 1. Install Or Import SPIX
+            ## 1. Load SPIX
 
-            In Colab this installs SPIX from GitHub. In a local checkout it imports the
-            package from the repository.
+            Colab installs SPIX from GitHub. A local checkout uses the package already
+            on disk.
             """
         ),
         code(
@@ -250,12 +247,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 2. Load The Public Visium HD ROI
+            ## 2. Load The Visium HD ROI
 
-            The ROI is derived from the public 10x Genomics Visium HD Human Colon
-            Cancer P2 dataset. It keeps 10,000 spatial bins and a bounded gene set
-            selected for epithelial, immune, stromal, secretory, and proliferative
-            signal.
+            This ROI comes from the public 10x Genomics Visium HD Human Colon Cancer P2
+            dataset. It keeps 10,000 spatial bins and a marker-diverse gene set.
             """
         ),
         code(
@@ -307,9 +302,9 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 3. Quick Tissue And Marker Overview
+            ## 3. Quick Look
 
-            This gives participants a biological anchor before running SPIX.
+            A small sanity check before segmentation.
             """
         ),
         code(
@@ -351,10 +346,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 4. SPIX: Multiscale Superpixels
+            ## 4. SPIX Units
 
-            SPIX converts count variation into an embedding image, equalizes channels,
-            then computes tissue-aware superpixels at multiple physical scales.
+            We turn expression variation into an embedding image, then segment that
+            image at several physical scales.
             """
         ),
         code(
@@ -480,10 +475,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 5. Spatial Clustering On SPIX Units
+            ## 5. Spatial Clustering
 
-            We cluster the `r96` SPIX units using segment-level mean expression, then
-            project spatial-domain labels back to the original bins.
+            Cluster `r96` SPIX units by segment-level expression and project the domain
+            labels back to the original bins.
             """
         ),
         code(
@@ -549,10 +544,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 6. SVG: Multiscale Moran's I
+            ## 6. SVGs Across Scales
 
-            We compute Moran's I after aggregating bins into each SPIX scale. Genes that
-            peak at different scales are interpreted as scale-response SVGs.
+            Moran's I is computed after aggregation to each SPIX scale. Genes that peak
+            at different scales become the scale-response SVG examples.
             """
         ),
         code(
@@ -624,10 +619,9 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 7. Cell-State Labels For Interaction Scoring
+            ## 7. Lightweight Cell-State Labels
 
-            We create rough state labels from marker modules. These labels support the
-            spatial ligand-receptor scoring demo in the next section.
+            Marker modules give us rough state labels for the spatial LR example.
             """
         ),
         code(
@@ -691,13 +685,12 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 8. Cell-Cell Interaction: Spatial LR Candidate Scoring
+            ## 8. Spatial Ligand-Receptor Signals
 
-            The scoring uses directed neighboring SPIX fine-segment pairs within a
-            physical radius. For each ligand-receptor pair, we average
-            `ligand(sender segment) * receptor(receiver segment)` over neighboring
-            state pairs. This keeps the CCI demo tied to SPIX while avoiding millions
-            of bin-level edges in free Colab.
+            We score directed neighboring SPIX fine-segment pairs. For each candidate
+            pair, the score is the average of
+            `ligand(sender segment) x receptor(receiver segment)` over neighboring
+            state pairs.
             """
         ),
         code(
@@ -822,9 +815,10 @@ def build_notebook(data_url: str, data_sha256: str):
         ),
         md(
             """
-            ## 9. Final Checks And Timing Report
+            ## 9. Timing Report
 
-            The JSON report is the artifact to attach to a Colab free-tier validation.
+            Save this JSON after the Colab run. It is the evidence for the free-tier
+            timing check.
             """
         ),
         code(
