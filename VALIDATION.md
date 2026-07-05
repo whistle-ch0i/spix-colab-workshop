@@ -38,8 +38,11 @@ Dataset details:
 
 Local fallback executor result, 2026-07-06:
 
-- Code cells: 14/14 passed.
-- Total elapsed: 128.32 seconds after local dependencies and data were present.
+- Code cells: 26/26 passed.
+- Total elapsed: 119.53 seconds after local dependencies and data were present.
+- Notebook structure: the practical notebook is split into short, stepwise code
+  cells for workshop use; no custom helper functions are defined inside the
+  notebook code cells.
 - Standard-tool teaching subset: `47039 x 2515` after zero-count filtering.
 - SVG: Squidpy Moran's I on a marker-diverse panel.
 - Example top SVG genes: `OLFM4`, `PIGR`, `REG1A`, `MUC2`, `TAGLN`.
@@ -79,11 +82,11 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 12
   - `r500`: 5
 - Slowest stages:
-  - standard-tool preprocessing with Scanpy and Squidpy: 46.95 seconds
-  - SPIX multiscale segmentation: 35.81 seconds
-  - Squidpy `ligrec`: 12.85 seconds
-  - SPIX multiscale Moran/SVG: 11.31 seconds
-  - SPIX embedding, graph smoothing, equalization, image cache: 7.56 seconds
+  - standard-tool preprocessing with Scanpy and Squidpy: 41.83 seconds
+  - SPIX multiscale segmentation: 34.79 seconds
+  - Squidpy `ligrec`: 11.31 seconds
+  - SPIX multiscale Moran/SVG: 10.43 seconds
+  - SPIX embedding, graph smoothing, equalization, image cache: 7.17 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

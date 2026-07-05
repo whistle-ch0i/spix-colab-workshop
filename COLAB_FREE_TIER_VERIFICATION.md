@@ -61,7 +61,8 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `ddc3a4eb3ee5b64dae210a6c8cf5820fbbfff784cabbebdf671100c266e8a586`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 128.32 seconds
+  - local elapsed after dependencies and data were present: 119.53 seconds
+  - code cells: 26/26 passed
 - Output checks:
   - standard-tool teaching subset: `47039 x 2515`
   - Scanpy Leiden clusters: 13 at `n_neighbors=30`, `resolution=0.01`

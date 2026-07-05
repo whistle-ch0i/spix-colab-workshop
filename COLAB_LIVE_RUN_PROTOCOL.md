@@ -46,7 +46,8 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 
 - Dataset: native 2 um ROI, `500000 x 2515`, 42.89 MB.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
-- Local elapsed time after dependencies and data were present: 128.32 seconds.
+- Code cells: 26/26 passed.
+- Local elapsed time after dependencies and data were present: 119.53 seconds.
 - Standard-tool teaching subset: `47039 x 2515`.
 - Scanpy Leiden clusters: 13 at `n_neighbors=30`, `resolution=0.01`.
 - Squidpy Moran top examples: `OLFM4`, `PIGR`, `REG1A`, `MUC2`, `TAGLN`.

@@ -18,6 +18,9 @@ Session flow:
 - SPIX VisiumHD P2 manuscript-style graph smoothing, equalization,
   `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG
 
+The notebook code is intentionally split into short stepwise cells for a
+hands-on class. Most cells can be run from top to bottom without editing.
+
 A second notebook keeps the broader manuscript mini-reproduction flow:
 
 `notebooks/SPIX_VisiumHD_multiscale_colab.ipynb`
