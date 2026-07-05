@@ -41,7 +41,7 @@ or an enterprise runtime.
 - The final report contains stage timings.
 - The standard sections use the 8 um pseudobulk object made from the 2 um ROI.
 - The spatial domain section includes expression-only baseline, Squidpy spatial
-  graph, BANKSY through `pyBANKSY`, and SpaGCN.
+  graph, BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN.
 - The CCI section includes spatial neighborhood enrichment and Squidpy `ligrec`.
 - The SPIX section reports the VisiumHD P2-style path:
   30-dimensional embedding, graph smoothing before equalization,
@@ -59,12 +59,12 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - ROI context SHA-256:
   `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
-- Code cells: 30/30 passed.
-- Local elapsed time after dependencies and data were present: 203.87 seconds.
+- Code cells: 36/36 passed.
+- Local elapsed time after dependencies and data were present: 295.73 seconds.
 - Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `JCHAIN`.
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
-  BANKSY through `pyBANKSY`, and SpaGCN.
+  BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN.
 - CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
   20 permutations.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
@@ -76,9 +76,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
   `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
   `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5.
-- Slowest local stages: 8 um preprocessing 37.43 sec, SPIX multiscale
-  segmentation 40.08 sec, equalization sweep 30.76 sec, smoothing sweep
-  24.76 sec, SPIX multiscale Moran/SVG 12.17 sec.
+- Slowest local stages: smoothing sweep 77.27 sec, 8 um preprocessing
+  41.70 sec, SPIX multiscale segmentation 39.86 sec, equalization sweep
+  35.70 sec, BayesSpace 19.03 sec, SPIX multiscale Moran/SVG 13.34 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
@@ -97,7 +97,7 @@ Observed on 2026-07-06 with the earlier 16 um practical notebook:
 - Multiscale SVG Moran: 4.49 seconds.
 - Segment-level spatial LR scoring: 3.89 seconds.
 
-For planning the current 500k 2 um notebook, budget about 4-5 minutes for a
+For planning the current 500k 2 um notebook, budget about 5-7 minutes for a
 fresh Colab runtime until a new real Colab timing report is collected.
 
 ## Local Baseline

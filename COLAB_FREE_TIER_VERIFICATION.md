@@ -45,7 +45,7 @@ for this workshop was 2 CPUs and 12.67 GB memory.
   - ROI overview plot and 8 um pseudobulk construction,
   - SVG with HVG comparison and Squidpy Moran's I,
   - spatial domain comparison with expression-only baseline, Squidpy spatial
-    graph, BANKSY through `pyBANKSY`, and SpaGCN,
+    graph, BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN,
   - cell-cell interaction with neighborhood enrichment and Squidpy `ligrec`,
   - SPIX manuscript-style embedding, graph smoothing, equalization, image
     cache,
@@ -69,14 +69,14 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `6eddea31f94576514f5234edd849811d96711cbaabbdc594a44692071729bfbb`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 203.87 seconds
-  - code cells: 30/30 passed
+  - local elapsed after dependencies and data were present: 295.73 seconds
+  - code cells: 36/36 passed
 - Output checks:
   - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
     `JCHAIN`
   - Top 100 HVG/SVG overlap: 3 genes
   - spatial domain methods: expression-only baseline, Squidpy spatial graph,
-    BANKSY through `pyBANKSY`, and SpaGCN
+    BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
   - neighborhood enrichment: 50 permutations on BANKSY domains
   - Squidpy `ligrec`: 11 ligand-receptor candidates, 20 permutations,
     top examples include `MIF-CD74`, `CD74-MIF`, `COL1A1-ITGB1`, and
@@ -93,9 +93,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `r2` 500000, `r8` 32138, `r16` 8001, `r30` 2260, `r40` 1274,
     `r50` 804, `r80` 309, `r100` 198, `r150` 87, `r200` 47,
     `r250` 28, `r300` 21, `r350` 19, `r400` 12, `r450` 12, `r500` 5
-  - slowest local stages: 8 um preprocessing 37.43 sec, SPIX multiscale
-    segmentation 40.08 sec, equalization sweep 30.76 sec, smoothing sweep
-    24.76 sec, SPIX multiscale Moran/SVG 12.17 sec
+  - slowest local stages: smoothing sweep 77.27 sec, 8 um preprocessing
+    41.70 sec, SPIX multiscale segmentation 39.86 sec, equalization sweep
+    35.70 sec, BayesSpace 19.03 sec, SPIX multiscale Moran/SVG 13.34 sec
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

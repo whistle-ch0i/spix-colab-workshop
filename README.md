@@ -16,7 +16,7 @@ Session flow:
 - 8 um pseudobulk from native 2 um bins
 - SVG: HVG versus Squidpy Moran's I
 - spatial domain comparison: expression-only baseline, Squidpy spatial graph,
-  BANKSY through `pyBANKSY`, and SpaGCN
+  BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
 - cell-cell interaction: spatial neighborhood enrichment plus Squidpy `ligrec`
 - SPIX: VisiumHD P2-style embedding, automatic graph smoothing selection,
   automatic equalization selection, `image_plot_slic` multiscale segmentation,
@@ -54,8 +54,8 @@ live exercise.
 
 The notebook builds a `31535 x 2515` 8 um pseudobulk object from this ROI for
 SVG, spatial domain, and CCI sections. The spatial domain comparison uses a
-central 3,500-bin 8 um panel so BANKSY and SpaGCN stay comfortable on a free
-CPU runtime. The final SPIX section uses the full 500,000-bin 2 um ROI.
+central 3,500-bin 8 um panel so BANKSY, BayesSpace, and SpaGCN stay comfortable
+on a free CPU runtime. The final SPIX section uses the full 500,000-bin 2 um ROI.
 
 The ROI overview plot uses:
 

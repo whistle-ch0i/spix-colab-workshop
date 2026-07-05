@@ -165,7 +165,8 @@ def setup_cells(
             ## 1. 패키지 준비
 
             Colab에서 없는 패키지는 여기서 설치합니다. 로컬에서 실행할 때는 현재
-            workspace에 있는 SPIX checkout을 먼저 사용합니다.
+            workspace에 있는 SPIX checkout을 먼저 사용합니다. Spatial domain 비교에
+            BayesSpace를 포함했기 때문에 R의 BayesSpace 패키지도 함께 확인합니다.
             """
         ),
         code(
@@ -207,9 +208,38 @@ def setup_cells(
                     raise ImportError(f"설치되지 않은 패키지: {missing}")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *missing])
 
+            if shutil.which("Rscript") is None:
+                raise ImportError("BayesSpace 실행을 위해 Rscript가 필요합니다.")
+
+            bayesspace_check = subprocess.run(
+                [
+                    "Rscript",
+                    "-e",
+                    "quit(status=ifelse(requireNamespace('BayesSpace', quietly=TRUE), 0, 1))",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if bayesspace_check.returncode != 0:
+                if not IN_COLAB:
+                    raise ImportError("R package BayesSpace가 설치되어 있지 않습니다.")
+                subprocess.check_call([
+                    "Rscript",
+                    "-e",
+                    (
+                        "if (!requireNamespace('BiocManager', quietly=TRUE)) "
+                        "install.packages('BiocManager', repos='https://cloud.r-project.org'); "
+                        "BiocManager::install('BayesSpace', update=FALSE, ask=FALSE); "
+                        "if (!requireNamespace('BayesSpace', quietly=TRUE)) "
+                        "stop('BayesSpace install failed')"
+                    ),
+                ])
+            R_BAYESSPACE_READY = True
+
             seconds = round(time.perf_counter() - start, 2)
             STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
             print(f"[timing] {stage}: {seconds} sec")
+            print("BayesSpace R package: ready")
             """
         ),
         md(
@@ -267,6 +297,7 @@ def setup_cells(
             import pandas as pd
             import scanpy as sc
             import scipy.sparse as sp
+            import scipy.io as sio
             import squidpy as sq
             import SpaGCN
             from banksy.initialize_banksy import initialize_banksy
@@ -508,6 +539,7 @@ def eight_um_cells() -> list:
             group_labels = pd.Series(row_8um.astype(str) + "_" + col_8um.astype(str))
             group_codes, group_names = pd.factorize(group_labels, sort=True)
             n_groups = len(group_names)
+            group_grid = np.array([name.split("_") for name in group_names], dtype=int)
 
             aggregation = sp.csr_matrix(
                 (
@@ -533,8 +565,10 @@ def eight_um_cells() -> list:
 
             obs_8um = pd.DataFrame(index=[f"bin8_{name}" for name in group_names])
             obs_8um["n_2um_bins"] = bins_per_8um.astype(int)
-            obs_8um["array_row"] = mean_array_row
-            obs_8um["array_col"] = mean_array_col
+            obs_8um["array_row"] = group_grid[:, 0]
+            obs_8um["array_col"] = group_grid[:, 1]
+            obs_8um["array_row_2um_mean"] = mean_array_row
+            obs_8um["array_col_2um_mean"] = mean_array_col
 
             adata_8um = ad.AnnData(X=X_8um.tocsr(), obs=obs_8um, var=adata_2um.var.copy())
             adata_8um.var_names = adata_2um.var_names.copy()
@@ -695,9 +729,14 @@ def svg_cells() -> list:
             """
             ## 4. SVG
 
-            HVG는 sample 안에서 많이 변하는 gene입니다. 하지만 그 변동이 조직 위에서
-            정리되어 있는지는 보지 않습니다. SVG는 같은 expression matrix에 공간
-            좌표를 같이 넣고, 주변 bin끼리 비슷한 패턴을 보이는 gene을 찾습니다.
+            HVG는 sample 안에서 많이 변하는 gene입니다. 세포 상태나 cell type을
+            볼 때 유용하지만, 그 변동이 조직 위에서 정리된 패턴인지까지는 말해주지
+            않습니다.
+
+            SVG는 질문이 조금 다릅니다. 같은 expression matrix를 보더라도 좌표를
+            같이 사용해서, 가까운 bin들끼리 비슷하게 높거나 낮은 gene을 찾습니다.
+            그래서 SVG는 spatial domain을 해석하거나, 특정 조직 구조를 설명할 marker
+            후보를 잡을 때 먼저 보게 됩니다.
             """
         ),
         code(
@@ -751,9 +790,12 @@ def svg_cells() -> list:
             """
             ## 4-1. SVG 공간 패턴
 
-            표에서 끝내지 않고 실제 위치에 다시 그려 봅니다. SVG가 유용한 이유는
-            rank가 높은 gene이 어느 조직 영역에서 올라오는지 바로 확인할 수 있기
-            때문입니다.
+            표에서 끝내지 않고 실제 위치에 다시 그려 봅니다. 여기서 중요한 것은
+            p-value나 rank만 보는 것이 아니라, 높은 rank의 gene이 조직 위에서 어떤
+            모양으로 나타나는지 확인하는 것입니다.
+
+            이 그림을 보고 나면 뒤의 spatial domain 결과를 해석할 때 “어떤 gene이
+            어떤 영역을 설명하는가”라는 기준을 세울 수 있습니다.
             """
         ),
         code(
@@ -804,33 +846,63 @@ def domain_cells() -> list:
             """
             ## 5. Spatial domain clustering
 
-            여기서 목표는 단순히 Leiden이나 k-means를 실행하는 것이 아닙니다. 공간
-            transcriptomics에서 domain을 찾는 방법은 주변 위치의 정보를 같이 씁니다.
-            아래에서는 같은 8 um panel에서 baseline과 세 가지 spatial tool을 비교합니다.
+            여기서 말하는 clustering은 단순히 Leiden이나 k-means를 한 번 더 돌리는
+            것이 아닙니다. 공간전사체에서 domain을 찾는다는 것은, 발현이 비슷한
+            bin들이 실제 조직 위에서도 서로 붙어 있는지 같이 보는 작업입니다.
+
+            그래서 먼저 expression-only 결과를 기준선으로 두고, 그 다음 spatial
+            정보를 쓰는 도구들을 같은 panel에서 비교합니다. 같은 데이터를 넣어도
+            방법마다 묻는 질문이 조금씩 다르기 때문에 결과가 완전히 같을 필요는
+            없습니다.
 
             - Expression-only Leiden: 공간 정보를 쓰지 않는 비교 기준
-            - Squidpy spatial graph: 좌표 기반 인접 graph에서 domain을 나눈 결과
-            - BANKSY: 주변 발현과 azimuthal filter를 feature에 포함한 spatial domain
-            - SpaGCN: spatial graph convolution 기반 domain
+            - Squidpy spatial graph: 좌표 인접성만으로 생기는 spatial block 확인
+            - BANKSY: 주변 발현과 방향성 feature를 함께 쓰는 spatial domain 방법
+            - BayesSpace: 인접 spot이 같은 domain일 가능성을 모델에 넣는 Bayesian 방법
+            - SpaGCN: spatial graph convolution으로 발현과 위치를 함께 학습하는 방법
             """
         ),
         code(
             """
-            stage = "spatial_domain_methods"
+            stage = "select_domain_panel"
             start = time.perf_counter()
 
             DOMAIN_MAX_OBS = int(os.environ.get("SPIX_WORKSHOP_DOMAIN_MAX_OBS", "3500"))
-            center_8um = np.median(analysis_coords, axis=0)
-            distance_to_center = ((analysis_coords - center_8um) ** 2).sum(axis=1)
-            if analysis_adata.n_obs <= DOMAIN_MAX_OBS:
-                domain_idx = np.arange(analysis_adata.n_obs)
+            nonzero_domain_idx = np.flatnonzero(total_counts_8um > 0)
+            nonzero_domain_coords = analysis_coords[nonzero_domain_idx]
+            center_8um = np.median(nonzero_domain_coords, axis=0)
+            distance_to_center = ((nonzero_domain_coords - center_8um) ** 2).sum(axis=1)
+            if len(nonzero_domain_idx) <= DOMAIN_MAX_OBS:
+                domain_idx = nonzero_domain_idx
             else:
-                domain_idx = np.sort(np.argpartition(distance_to_center, DOMAIN_MAX_OBS - 1)[:DOMAIN_MAX_OBS])
+                selected_local_idx = np.argpartition(distance_to_center, DOMAIN_MAX_OBS - 1)[:DOMAIN_MAX_OBS]
+                domain_idx = np.sort(nonzero_domain_idx[selected_local_idx])
 
             domain_adata = analysis_adata[domain_idx].copy()
             domain_coords = np.asarray(domain_adata.obsm["spatial"], dtype=float)
             DOMAIN_N_PCS = min(20, domain_adata.obsm["X_pca"].shape[1])
-            BANKSY_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BANKSY_N_GENES", "800"))
+            domain_hvg_table = domain_adata.var[domain_adata.var["highly_variable"]].copy()
+            domain_hvg_table = domain_hvg_table.sort_values("dispersions_norm", ascending=False)
+
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print(f"domain panel: {domain_adata.n_obs:,} nonzero 8 um bins x {domain_adata.n_vars:,} genes")
+            """
+        ),
+        md(
+            """
+            ## 5-1. Expression-only baseline
+
+            먼저 공간 정보를 쓰지 않는 결과를 만듭니다. 이 결과가 기준선입니다.
+            이후 spatial tool의 결과가 이 기준선과 얼마나 달라지는지 보면, 각 도구가
+            공간 정보를 어느 정도 강하게 반영했는지 감을 잡을 수 있습니다.
+            """
+        ),
+        code(
+            """
+            stage = "domain_expression_baseline"
+            start = time.perf_counter()
 
             sc.pp.neighbors(
                 domain_adata,
@@ -850,6 +922,27 @@ def domain_cells() -> list:
                 random_state=7,
             )
 
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print("clusters:", domain_adata.obs["expression_domain"].nunique())
+            """
+        ),
+        md(
+            """
+            ## 5-2. Squidpy spatial graph
+
+            Squidpy는 공간 좌표로 neighbor graph를 만들 수 있습니다. 여기서는 발현
+            feature를 다시 보지 않고, 좌표상 가까운 bin끼리 연결된 graph 위에서
+            Leiden을 돌립니다. 생물학적 annotation을 바로 주는 도구라기보다는,
+            이 ROI가 공간적으로 어떤 block 구조를 갖는지 보는 기준입니다.
+            """
+        ),
+        code(
+            """
+            stage = "domain_squidpy_spatial_graph"
+            start = time.perf_counter()
+
             sq.gr.spatial_neighbors(
                 domain_adata,
                 spatial_key="spatial",
@@ -868,9 +961,28 @@ def domain_cells() -> list:
                 random_state=7,
             )
 
-            banksy_gene_table = domain_adata.var[domain_adata.var["highly_variable"]].copy()
-            banksy_gene_table = banksy_gene_table.sort_values("dispersions_norm", ascending=False)
-            banksy_genes = banksy_gene_table.head(min(BANKSY_N_GENES, len(banksy_gene_table))).index.tolist()
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print("clusters:", domain_adata.obs["squidpy_spatial_domain"].nunique())
+            """
+        ),
+        md(
+            """
+            ## 5-3. BANKSY
+
+            BANKSY는 각 bin의 발현만 보지 않고, 주변 bin의 평균 발현과 방향성
+            정보를 feature에 함께 넣습니다. 그래서 작은 노이즈보다 주변 조직 문맥이
+            더 중요할 때 domain이 더 안정적으로 잡히는지 확인할 수 있습니다.
+            """
+        ),
+        code(
+            """
+            stage = "domain_banksy"
+            start = time.perf_counter()
+
+            BANKSY_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BANKSY_N_GENES", "800"))
+            banksy_genes = domain_hvg_table.head(min(BANKSY_N_GENES, len(domain_hvg_table))).index.tolist()
             banksy_adata = domain_adata[:, banksy_genes].copy()
             if sp.issparse(banksy_adata.X):
                 gene_mean = np.asarray(banksy_adata.X.mean(axis=0)).ravel()
@@ -916,6 +1028,167 @@ def domain_cells() -> list:
             domain_adata.obs["banksy_domain"] = pd.Categorical(banksy_labels.astype(str))
             plt.close("all")
 
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print(f"BANKSY genes: {banksy_adata.n_vars:,}")
+            print("clusters:", domain_adata.obs["banksy_domain"].nunique())
+            """
+        ),
+        md(
+            """
+            ## 5-4. BayesSpace
+
+            BayesSpace는 인접한 spot/bin이 같은 domain에 들어갈 가능성을 모델 안에
+            넣는 방식입니다. 여기서는 8 um pseudobulk counts와 grid 좌표를 R
+            BayesSpace에 넘기고, 결과 label만 다시 Python으로 읽어옵니다.
+
+            실습에서는 시간을 줄이기 위해 MCMC 반복 수를 작게 둡니다. 논문용 분석에서
+            BayesSpace를 정식으로 쓴다면 `q` 선택과 반복 수를 별도로 점검해야 합니다.
+            """
+        ),
+        code(
+            """
+            stage = "domain_bayesspace"
+            start = time.perf_counter()
+
+            BAYESSPACE_N_GENES = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_N_GENES", str(domain_adata.n_vars)))
+            BAYESSPACE_Q = int(
+                os.environ.get(
+                    "SPIX_WORKSHOP_BAYESSPACE_Q",
+                    str(domain_adata.obs["expression_domain"].nunique()),
+                )
+            )
+            BAYESSPACE_D = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_D", "15"))
+            BAYESSPACE_NREP = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_NREP", "200"))
+            BAYESSPACE_BURNIN = int(os.environ.get("SPIX_WORKSHOP_BAYESSPACE_BURNIN", "50"))
+
+            bayesspace_dir = OUTPUT_DIR / "bayesspace"
+            bayesspace_dir.mkdir(parents=True, exist_ok=True)
+
+            bayesspace_genes = domain_hvg_table.head(
+                min(BAYESSPACE_N_GENES, len(domain_hvg_table))
+            ).index.tolist()
+            bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
+            bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
+            assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
+            counts_for_r = bayesspace_raw.X.T
+            if sp.issparse(counts_for_r):
+                counts_for_r = counts_for_r.tocsc()
+            else:
+                counts_for_r = sp.csc_matrix(counts_for_r)
+
+            sio.mmwrite(bayesspace_dir / "counts.mtx", counts_for_r)
+            pd.DataFrame({"gene": bayesspace_genes}).to_csv(
+                bayesspace_dir / "genes.csv",
+                index=False,
+            )
+            pd.DataFrame({
+                "barcode": bayesspace_raw.obs_names,
+                "array_row": bayesspace_raw.obs["array_row"].to_numpy(dtype=int),
+                "array_col": bayesspace_raw.obs["array_col"].to_numpy(dtype=int),
+            }).to_csv(bayesspace_dir / "spots.csv", index=False)
+
+            bayesspace_script = bayesspace_dir / "run_bayesspace.R"
+            bayesspace_script.write_text(
+                '''
+                suppressPackageStartupMessages({
+                  library(Matrix)
+                  library(SingleCellExperiment)
+                  library(BayesSpace)
+                })
+                args <- commandArgs(trailingOnly=TRUE)
+                input_dir <- args[[1]]
+                q <- as.integer(args[[2]])
+                d <- as.integer(args[[3]])
+                nrep <- as.integer(args[[4]])
+                burnin <- as.integer(args[[5]])
+
+                counts <- readMM(file.path(input_dir, "counts.mtx"))
+                genes <- read.csv(file.path(input_dir, "genes.csv"), stringsAsFactors=FALSE)$gene
+                spots <- read.csv(file.path(input_dir, "spots.csv"), stringsAsFactors=FALSE)
+
+                rownames(counts) <- make.unique(genes)
+                colnames(counts) <- spots$barcode
+                sce <- SingleCellExperiment(assays=list(counts=as(counts, "CsparseMatrix")))
+                colData(sce)$array_row <- as.integer(spots$array_row)
+                colData(sce)$array_col <- as.integer(spots$array_col)
+
+                set.seed(7)
+                sce <- spatialPreprocess(
+                  sce,
+                  platform="VisiumHD",
+                  n.PCs=d,
+                  n.HVGs=min(2000, nrow(sce)),
+                  log.normalize=TRUE
+                )
+                set.seed(7)
+                sce <- spatialCluster(
+                  sce,
+                  q=q,
+                  platform="VisiumHD",
+                  d=d,
+                  init.method="kmeans",
+                  model="t",
+                  gamma=2,
+                  nrep=nrep,
+                  burn.in=burnin,
+                  save.chain=FALSE
+                )
+                out <- data.frame(
+                  barcode=colnames(sce),
+                  bayesspace_domain=as.character(colData(sce)$spatial.cluster)
+                )
+                write.csv(out, file.path(input_dir, "bayesspace_labels.csv"), row.names=FALSE)
+                '''
+            )
+
+            bayesspace_run = subprocess.run(
+                [
+                    "Rscript",
+                    str(bayesspace_script),
+                    str(bayesspace_dir),
+                    str(BAYESSPACE_Q),
+                    str(BAYESSPACE_D),
+                    str(BAYESSPACE_NREP),
+                    str(BAYESSPACE_BURNIN),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            bayesspace_log = (bayesspace_run.stdout + "\\n" + bayesspace_run.stderr).splitlines()
+            print("\\n".join(bayesspace_log[-8:]))
+            assert bayesspace_run.returncode == 0, "BayesSpace 실행이 실패했습니다."
+
+            bayesspace_labels = pd.read_csv(
+                bayesspace_dir / "bayesspace_labels.csv"
+            ).set_index("barcode")
+            domain_adata.obs["bayesspace_domain"] = pd.Categorical(
+                bayesspace_labels.loc[domain_adata.obs_names, "bayesspace_domain"].astype(str).to_numpy()
+            )
+
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print("q:", BAYESSPACE_Q)
+            print("clusters:", domain_adata.obs["bayesspace_domain"].nunique())
+            """
+        ),
+        md(
+            """
+            ## 5-5. SpaGCN
+
+            SpaGCN은 spatial adjacency matrix를 만들고, graph convolution으로 발현
+            정보와 위치 정보를 함께 반영합니다. 여기서는 histology image 없이 좌표만
+            사용합니다. 같은 panel에서 돌려야 BANKSY, BayesSpace와 해석을 비교할
+            수 있습니다.
+            """
+        ),
+        code(
+            """
+            stage = "domain_spagcn"
+            start = time.perf_counter()
+
             spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
             if sp.issparse(spagcn_adata.X):
                 spagcn_adata.X = spagcn_adata.X.toarray().astype(np.float32)
@@ -947,10 +1220,33 @@ def domain_cells() -> list:
             spagcn_labels, spagcn_prob = spagcn_model.predict()
             domain_adata.obs["spagcn_domain"] = pd.Categorical(spagcn_labels.astype(str))
 
+            seconds = round(time.perf_counter() - start, 2)
+            STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
+            print(f"[timing] {stage}: {seconds} sec")
+            print(f"SpaGCN l: {spagcn_l:.4f}")
+            print("clusters:", domain_adata.obs["spagcn_domain"].nunique())
+            """
+        ),
+        md(
+            """
+            ## 5-6. 결과를 표로 비교
+
+            먼저 각 방법이 몇 개의 domain을 만들었는지 확인합니다. 그 다음 Adjusted
+            Rand Index를 봅니다. ARI가 높다는 것은 두 방법이 비슷한 label을 냈다는
+            뜻이고, 낮다는 것은 공간 정보를 반영하는 방식이 다르다는 뜻입니다.
+            어느 쪽이 맞는지는 map과 marker를 같이 보고 판단해야 합니다.
+            """
+        ),
+        code(
+            """
+            stage = "summarize_spatial_domain_methods"
+            start = time.perf_counter()
+
             domain_methods = {
                 "expression_domain": "Expression baseline",
                 "squidpy_spatial_domain": "Squidpy spatial graph",
                 "banksy_domain": "BANKSY",
+                "bayesspace_domain": "BayesSpace",
                 "spagcn_domain": "SpaGCN",
             }
 
@@ -988,16 +1284,13 @@ def domain_cells() -> list:
             seconds = round(time.perf_counter() - start, 2)
             STAGE_TIMES.append({"stage": stage, "seconds": seconds, "ok": True})
             print(f"[timing] {stage}: {seconds} sec")
-            print(f"domain panel: {domain_adata.n_obs:,} 8 um bins")
-            print(f"BANKSY genes: {banksy_adata.n_vars:,}")
-            print(f"SpaGCN l: {spagcn_l:.4f}")
             display(domain_count_table)
             display(domain_ari_table)
             """
         ),
         md(
             """
-            ## 5-1. Domain map 비교
+            ## 5-7. Domain map 비교
 
             같은 8 um panel에서 결과를 나란히 봅니다. 좋은 결과는 cluster 개수가
             많다는 뜻이 아니라, 조직 구조와 marker 해석이 같이 맞는 결과입니다.
@@ -1033,7 +1326,7 @@ def domain_cells() -> list:
         ),
         md(
             """
-            ## 5-2. Domain marker
+            ## 5-8. Domain marker
 
             이후 CCI에서는 BANKSY domain을 사용합니다. 여기서는 각 domain의 marker를
             먼저 확인합니다.
@@ -1076,9 +1369,13 @@ def cci_cells() -> list:
             """
             ## 6. Cell-cell interaction
 
-            공간전사체에서 CCI를 볼 때의 장점은 두 가지입니다. 먼저 domain끼리 실제로
-            붙어 있는지 볼 수 있고, 그 다음 ligand-receptor 발현이 그 접촉 관계와
-            맞는지 볼 수 있습니다.
+            공간전사체에서 CCI를 볼 때의 장점은 순서가 분명하다는 것입니다. 먼저
+            어떤 domain들이 실제로 서로 붙어 있는지 확인하고, 그 다음 그 접촉 관계를
+            설명할 만한 ligand-receptor pair가 있는지 봅니다.
+
+            발현만으로 ligand-receptor pair를 찾으면 멀리 떨어진 영역 사이의 신호도
+            후보로 올라올 수 있습니다. 공간 정보를 같이 보면 “발현도 있고, 실제로
+            가까이도 있는가”를 함께 확인할 수 있습니다.
             """
         ),
         code(
@@ -1127,6 +1424,9 @@ def cci_cells() -> list:
 
             다음은 발현 기반 ligand-receptor 분석입니다. 실습 시간에는 전체 database를
             새로 받지 않고, colorectal tissue에서 해석하기 쉬운 후보 pair만 사용합니다.
+
+            여기서 목표는 pair 수를 많이 뽑는 것이 아니라, 앞에서 본 domain 접촉
+            구조와 LR 발현이 같은 방향으로 설명되는지 확인하는 것입니다.
             """
         ),
         code(
@@ -1274,10 +1574,13 @@ def spix_cells() -> list:
             """
             ## 7. SPIX
 
-            마지막은 2 um ROI 전체를 그대로 사용합니다. 흐름은 P2 재현 코드와 맞춰
-            `embedding -> smoothing -> equalization -> image cache -> multiscale segmentation -> scale별 SVG`
-            순서로 둡니다. smoothing/equalization은 기본값으로 sweep을 돌려 자동
-            선택합니다.
+            마지막은 2 um ROI 전체를 그대로 사용합니다. 앞의 표준 도구들은 안정성을
+            위해 8 um pseudobulk에서 돌렸지만, SPIX 파트는 2 um 정보를 버리지 않고
+            여러 scale의 tissue unit으로 바꾸는 흐름을 보여줍니다.
+
+            순서는 P2 재현 코드와 맞춰 `embedding -> smoothing -> equalization ->
+            image cache -> multiscale segmentation -> scale별 SVG`로 둡니다.
+            smoothing과 equalization은 직접 숫자를 찍어 넣지 않고 sweep으로 고릅니다.
             """
         ),
         code(
@@ -1343,6 +1646,9 @@ def spix_cells() -> list:
             ## 7-2. Graph smoothing 자동 선택
 
             SPIX는 equalization 전에 embedding을 공간 graph 위에서 smoothing합니다.
+            이 단계는 아주 작은 bin 단위의 노이즈를 줄이고, 주변 조직 문맥이
+            segmentation에 반영되도록 만드는 과정입니다.
+
             여기서는 P2 재현 코드와 같은 grid를 두고 추천값을 고릅니다. 시간이 부족한
             예행연습에서는 `SPIX_WORKSHOP_SPIX_RUN_TUNING=0`으로 끌 수 있습니다.
             """
@@ -1418,7 +1724,8 @@ def spix_cells() -> list:
             ## 7-3. Equalization 자동 선택과 image cache
 
             smoothing된 embedding을 SLIC 계열 segmentation이 쓰기 좋은 multichannel
-            image로 바꿉니다. equalization parameter도 sweep으로 고릅니다.
+            image로 바꿉니다. equalization은 channel별 contrast가 너무 약하거나
+            너무 강해지는 것을 막기 위한 단계입니다. 이 값도 sweep으로 고릅니다.
             """
         ),
         code(
@@ -1727,6 +2034,7 @@ def final_cells() -> list:
                     "output_dir": str(OUTPUT_DIR),
                     "spatial_domain_counts": str(OUTPUT_DIR / "spatial_domain_counts.csv"),
                     "spatial_domain_ari": str(OUTPUT_DIR / "spatial_domain_ari.csv"),
+                    "bayesspace_labels": str(OUTPUT_DIR / "bayesspace" / "bayesspace_labels.csv"),
                     "smoothing_selection": str(OUTPUT_DIR / "spix_smoothing_selection.json"),
                     "equalization_selection": str(OUTPUT_DIR / "spix_equalization_selection.json"),
                     "segments_index": str(SEGMENT_DIR / "segments_index.csv"),
@@ -1763,12 +2071,16 @@ def combined_notebook(data_url: str, data_sha256: str, roi_context_url: str, roi
             """
             # 공간전사체 분석 실습: SVG, spatial domain, CCI, SPIX
 
-            같은 Visium HD P2 ROI에서 네 가지 질문을 순서대로 봅니다.
+            오늘 실습은 같은 Visium HD P2 ROI를 계속 사용합니다. 데이터를 바꾸지
+            않고 질문만 바꾸면, 각 분석이 어떤 역할을 하는지 훨씬 분명하게 보입니다.
 
             1. **SVG**: 공간적으로 정리된 gene은 무엇인가?
             2. **Spatial domain**: 조직 영역은 어떻게 나눌 수 있는가?
             3. **CCI**: 서로 붙어 있는 영역 사이에 어떤 ligand-receptor 신호가 보이는가?
             4. **SPIX**: 2 um 정보를 여러 scale의 tissue unit으로 어떻게 바꿀 수 있는가?
+
+            앞의 세 파트는 8 um pseudobulk에서 안정적으로 진행하고, 마지막 SPIX
+            파트는 2 um ROI 전체를 사용합니다.
             """
         ),
         md(
@@ -1778,6 +2090,10 @@ def combined_notebook(data_url: str, data_sha256: str, roi_context_url: str, roi
             원본 P2는 2 um bin이 약 8.7M개입니다. 여기서는 그중 하나의 ROI를
             사용합니다. 일반 분석은 8 um pseudobulk로 진행하고, SPIX는 2 um ROI
             전체를 사용합니다.
+
+            실습에서 중요한 것은 “가장 큰 데이터”를 억지로 Colab에 올리는 것이
+            아니라, 같은 ROI에서 표준 공간 분석과 SPIX의 multiscale 분석이 어떻게
+            이어지는지 끝까지 확인하는 것입니다.
             """
         ),
     ]

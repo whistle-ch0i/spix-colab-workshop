@@ -18,7 +18,7 @@ KOGO 공간전사체 실습에서 사용할 Colab 파일입니다.
 
 - SVG: HVG와 Squidpy Moran's I 비교
 - Spatial domain: expression-only baseline, Squidpy spatial graph, BANKSY,
-  SpaGCN 비교
+  BayesSpace, SpaGCN 비교
 - Cell-cell interaction: Squidpy neighborhood enrichment, Squidpy `ligrec`
 
 SPIX 파트는 VisiumHD P2 논문/재현 코드의 흐름에 맞춰 `embedding ->
