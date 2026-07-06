@@ -1,0 +1,14 @@
+dominant_scale_group,biological_layer,n_terms,median_specificity_delta,best_neg_log10_fdr
+fine_hclust,other,422,1.652073914876897,9.231081783535874
+fine_hclust,immune_inflammatory,403,2.564646393055199,9.488833942326478
+fine_hclust,stromal_mesenchymal,178,2.564646393055199,7.163719209811261
+fine_hclust,epithelial_intestinal,76,1.551038180955991,5.995912082422218
+fine_hclust,cancer_pathway,28,2.051139218763052,5.450591278976367
+mid_hclust,other,39,1.652073914876897,3.177149054761768
+mid_hclust,epithelial_intestinal,13,1.652073914876897,3.0066546334936826
+mid_hclust,stromal_mesenchymal,8,1.8818332273886773,2.7272076156933145
+mid_hclust,immune_inflammatory,3,1.652073914876897,1.652073914876897
+coarse_hclust,other,70,1.652073914876897,3.507484973273693
+coarse_hclust,stromal_mesenchymal,21,1.652073914876897,7.700484889851261
+coarse_hclust,immune_inflammatory,7,1.652073914876897,1.75966047291397
+coarse_hclust,epithelial_intestinal,4,1.652073914876897,7.700484889851261

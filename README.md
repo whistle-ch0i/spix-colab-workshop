@@ -17,10 +17,12 @@ Session flow:
 - SVG: HVG versus Squidpy Moran's I
 - spatial domain comparison: expression-only baseline, Squidpy spatial graph,
   BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
-- cell-cell interaction: spatial neighborhood enrichment plus Squidpy `ligrec`
+- cell-cell interaction: spatial neighborhood enrichment, Squidpy `ligrec`,
+  and bundled LIANA rank-aggregate results on the same BayesSpace CCI domains
 - SPIX: VisiumHD P2-style embedding, automatic graph smoothing selection,
   automatic equalization selection, `image_plot_slic` multiscale segmentation,
-  and multiscale Moran/SVG
+  multiscale Moran/SVG, scale-response plots, and CRC SVG ontology reference
+  heatmaps from the manuscript reproduction tables
 
 The notebook code is intentionally split into short stepwise cells for a
 hands-on class. Most cells can be run from top to bottom without editing.
@@ -62,9 +64,11 @@ live exercise.
 The notebook builds a `62898 x 2515` 8 um pseudobulk object from this ROI for
 SVG, spatial domain, and CCI sections. The spatial domain comparison uses a
 central 3,500-bin 8 um panel so BANKSY, BayesSpace, and SpaGCN stay comfortable
-on a free CPU runtime. In Colab safe mode, the final SPIX section uses a
-central 500,000-bin native 2 um subset to avoid silent free-tier runtime exits.
-Set `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=1000000` for the 1M reference run.
+on a free CPU runtime. In Colab safe mode, the final SPIX section now uses the
+full 1,000,000-bin native 2 um ROI. A real free-tier Colab report on
+2026-07-06 peaked around 3.1 GB RSS, so the 500k cap is kept only as a fallback:
+set `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=500000` if a participant runtime exits
+silently.
 
 The ROI overview plot uses:
 
@@ -180,6 +184,12 @@ The notebook expects these raw URLs:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/spagcn_labels_1m_panel3500.csv`
 
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/liana_rank_aggregate_1m_panel3500.csv`
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/crc_scale_svg_ontology_reference.csv`
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/crc_ontology_layer_summary_by_scale.csv`
+
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
@@ -194,8 +204,8 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
 - Use CPU runtime: `Runtime > Change runtime type > Hardware accelerator: None`.
 - The notebook defaults to `N_JOBS=2`.
 - Colab safe mode is on by default in Colab. It keeps SVG/domain/CCI on the
-  1M ROI-derived 8 um pseudobulk, then runs SPIX on a central 500k native
-  2 um subset after clearing standard-analysis objects from memory.
+  1M ROI-derived 8 um pseudobulk, then runs SPIX on the same central 1M native
+  2 um ROI after clearing standard-analysis objects from memory.
 - Python packages are pinned in `requirements-colab.txt`. `zarr==2.18.3` is
   fixed deliberately so the SPIX image-cache step does not receive zarr v3 in a
   fresh Colab runtime.
@@ -209,6 +219,9 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
   TensorFlow, which has restarted the free Colab kernel during setup. Set
   `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` only in a rehearsal runtime where that risk
   is acceptable.
+- LIANA is not installed during the default Colab setup. The CCI section reads
+  bundled LIANA rank-aggregate results for the fixed 3,500-bin panel. Set
+  `SPIX_WORKSHOP_RUN_LIANA_LIVE=1` only for a separate rehearsal.
 - Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
   for workshop participants. The first notebook cell records `cpu_count`,
   memory, and disk space for the actual runtime.

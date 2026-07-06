@@ -29,6 +29,15 @@ EXPECTED_SHA256 = {
     "data/spagcn_labels_1m_panel3500.csv": (
         "de3f7a7907ff6bd0d67afd2aa216538b834d3c1d8b6a9368c723770235287d73"
     ),
+    "data/liana_rank_aggregate_1m_panel3500.csv": (
+        "ecf27b3386c4acce2e964bb6cfe0397c29a9f9b32d10da8063519ffb4ad6db16"
+    ),
+    "data/crc_scale_svg_ontology_reference.csv": (
+        "ada790a40fa84c248cebca152022c1dedbcb6fdc88f0b351278f6866222980ea"
+    ),
+    "data/crc_ontology_layer_summary_by_scale.csv": (
+        "3c00aef83046532dca4702bad67e9dddf4e0817911a2d41809ef3846668ece60"
+    ),
 }
 
 REQUIRED_FILES = [
@@ -48,6 +57,9 @@ REQUIRED_URLS = [
     f"{RAW_BASE}/data/visiumhd_p2_roi_context_1000000_downsample.csv",
     f"{RAW_BASE}/data/bayesspace_labels_1m_panel3500.csv",
     f"{RAW_BASE}/data/spagcn_labels_1m_panel3500.csv",
+    f"{RAW_BASE}/data/liana_rank_aggregate_1m_panel3500.csv",
+    f"{RAW_BASE}/data/crc_scale_svg_ontology_reference.csv",
+    f"{RAW_BASE}/data/crc_ontology_layer_summary_by_scale.csv",
 ]
 
 
@@ -86,6 +98,9 @@ def check_local_files(root: Path) -> list[str]:
             "workshop_helpers.py",
             "bayesspace_labels_1m_panel3500.csv",
             "spagcn_labels_1m_panel3500.csv",
+            "liana_rank_aggregate_1m_panel3500.csv",
+            "crc_scale_svg_ontology_reference.csv",
+            "crc_ontology_layer_summary_by_scale.csv",
         ]:
             if token not in text:
                 errors.append(f"notebook does not reference {token}")

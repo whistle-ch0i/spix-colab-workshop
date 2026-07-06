@@ -24,6 +24,26 @@ R/Bioconductor setup, and SpaGCN can restart free Colab kernels through its
 TensorFlow import path. The notebook still explains both methods in the spatial
 domain comparison section.
 
+Bundled CCI result for the same fixed 3,500-bin panel:
+
+`liana_rank_aggregate_1m_panel3500.csv`
+
+This file was produced with LIANA rank-aggregate on the bundled BayesSpace
+domain labels used by the CCI section. The notebook uses it by default so the
+workshop does not depend on a fresh LIANA install during class.
+Regenerate it with `scripts/build_liana_rank_aggregate_panel.py` after changing
+the fixed panel or CCI domain labels.
+
+Reference ontology tables for the SPIX scale-response SVG section:
+
+`crc_scale_svg_ontology_reference.csv`
+
+`crc_ontology_layer_summary_by_scale.csv`
+
+These are copied from the manuscript reproduction ontology tables. The notebook
+does not rerun online Enrichr calls during class; it uses these fixed tables to
+show how fine, mid, and coarse SPIX SVGs are interpreted.
+
 The previous 500k ROI is kept as a fallback for quick debugging:
 
 `visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`

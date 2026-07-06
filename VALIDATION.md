@@ -38,20 +38,20 @@ Dataset details:
 
 Local fallback executor result, 2026-07-06:
 
-- Code cells: 37/37 passed.
+- Code cells: 45/45 passed.
 - Colab safe mode was forced for this validation:
   `SPIX_WORKSHOP_COLAB_SAFE_MODE=1`.
-- Total elapsed in Colab safe mode: 219.32 seconds after local dependencies and
+- Total elapsed in Colab safe mode: 253.59 seconds after local dependencies and
   data were present.
-- Final process peak RSS in local safe-mode validation: 3.06 GB.
+- Final process peak RSS in local safe-mode validation: 4.10 GB.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use. Repeated file/checksum/timing/plotting chores live in
   `notebooks/workshop_helpers.py`. Colab setup chores live in
   `notebooks/colab_bootstrap.py`, and Python package versions are pinned in
   `requirements-colab.txt`. The notebook cells call Scanpy, Squidpy, BANKSY,
-  BayesSpace, and SPIX directly; SpaGCN is compared with bundled labels by
-  default, with live execution available only when
-  `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` is set.
+  BayesSpace, and SPIX directly; SpaGCN and LIANA are compared with bundled
+  outputs by default, with live execution available only when
+  `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` or `SPIX_WORKSHOP_RUN_LIANA_LIVE=1` is set.
 - Pinned package check in the validation run:
   `scanpy 1.11.5`, `squidpy 1.6.5`, `pybanksy 1.3.5`,
   `anndata 0.11.4`, `zarr 2.18.3`, `numcodecs 0.13.1`.
@@ -90,50 +90,55 @@ Local fallback executor result, 2026-07-06:
     BANKSY vs BayesSpace 0.440, BANKSY vs SpaGCN 0.438,
     BayesSpace vs SpaGCN 0.547.
 - Cell-cell interaction:
-  - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
-  - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
+  - Squidpy neighborhood enrichment on bundled BayesSpace CCI domains,
+    50 permutations.
+  - Squidpy `ligrec`, curated ligand-receptor candidates, 20 permutations,
     `threshold=0.0`.
+  - LIANA rank-aggregate bundled result for the same fixed 3,500-bin
+    BayesSpace CCI domains, joined with spatial neighborhood support.
   - Top CCI examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`.
 - SPIX section: VisiumHD P2 manuscript/reproduction path. The full
-  `1000000 x 2515` 2 um ROI remains the reference setting. In default Colab
-  safe mode, SPIX uses a central `500000 x 2515` native 2 um subset after
+  `1000000 x 2515` 2 um ROI is the default Colab safe-mode setting after
   standard-analysis objects are cleared from memory:
   - PCA/log-normalized embedding with 30 dimensions and up to 2,000 features.
   - graph smoothing before equalization.
-  - smoothing sweep enabled by default; selected `graph_k=15`, `graph_t=10`.
+  - smoothing sweep enabled by default; selected `graph_k=3`, `graph_t=30`.
   - equalization sweep enabled by default; selected `BalanceSimplest`,
-    `sleft=0.5`, `sright=0.5`.
+    `sleft=2.0`, `sright=4.0`.
   - `image_plot_slic` multiscale segmentation at
     `2,8,16,30,40,50,80,100,150,200,250,300,350,400,450,500` um.
   - compactness auto-selection through candidate sweep in
     `precompute_multiscale_segments`.
   - multiscale Moran/SVG ranking with SPIX segment labels.
+  - equalized embedding preview, scale-response SVG heatmap/trajectory,
+    representative gene maps, and CRC ontology reference heatmaps.
 - SPIX segment counts:
-  - `r2`: 500000 native 2 um bins
-  - `r8`: 33257
-  - `r16`: 8283
-  - `r30`: 2343
-  - `r40`: 1185
-  - `r50`: 777
-  - `r80`: 303
-  - `r100`: 197
-  - `r150`: 89
-  - `r200`: 49
-  - `r250`: 28
-  - `r300`: 21
-  - `r350`: 18
-  - `r400`: 12
-  - `r450`: 12
-  - `r500`: 5
+  - `r2`: 1000000 native 2 um bins
+  - `r8`: 55403
+  - `r16`: 16067
+  - `r30`: 4542
+  - `r40`: 2555
+  - `r50`: 1642
+  - `r80`: 647
+  - `r100`: 411
+  - `r150`: 178
+  - `r200`: 97
+  - `r250`: 61
+  - `r300`: 48
+  - `r350`: 36
+  - `r400`: 26
+  - `r450`: 21
+  - `r500`: 21
 - Slowest stages:
-  - SPIX multiscale segmentation: 45.00 seconds
-  - 8 um preprocessing with Scanpy/Squidpy: 42.69 seconds
-  - SPIX equalization sweep: 29.19 seconds
-  - SPIX smoothing sweep: 26.07 seconds
-  - import analysis packages: 20.09 seconds
-  - SPIX multiscale Moran/SVG: 16.40 seconds
+  - SPIX multiscale segmentation: 64.44 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 43.00 seconds
+  - SPIX smoothing sweep: 35.05 seconds
+  - SPIX equalization sweep: 27.66 seconds
+  - import analysis packages: 20.66 seconds
+  - SPIX multiscale Moran/SVG: 17.76 seconds
   - BayesSpace bundled label loading: 0.01 seconds
   - SpaGCN bundled label loading: 0.01 seconds
+  - LIANA bundled result loading: 0.01 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

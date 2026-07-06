@@ -28,6 +28,16 @@ Bundled SpaGCN label URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/spagcn_labels_1m_panel3500.csv`
 
+Bundled LIANA rank-aggregate URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/liana_rank_aggregate_1m_panel3500.csv`
+
+Bundled SPIX ontology reference URLs:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/crc_scale_svg_ontology_reference.csv`
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/crc_ontology_layer_summary_by_scale.csv`
+
 Requirements URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
@@ -84,12 +94,14 @@ or an enterprise runtime.
 - In the default Colab path, SpaGCN uses bundled labels for the fixed
   3,500-bin panel. Do not turn on live SpaGCN during class unless it has already
   been rehearsed in the same Colab runtime type.
-- The CCI section includes spatial neighborhood enrichment and Squidpy `ligrec`.
+- The CCI section includes spatial neighborhood enrichment, Squidpy `ligrec`,
+  and bundled LIANA rank-aggregate results on the same BayesSpace CCI domains.
 - The SPIX section reports the VisiumHD P2-style path:
   30-dimensional embedding, graph smoothing before equalization,
-  `image_plot_slic` multiscale segmentation, and multiscale Moran/SVG.
-- In default Colab safe mode, the SPIX section uses a central 500k native
-  2 um subset after standard-analysis objects are cleared from memory.
+  `image_plot_slic` multiscale segmentation, multiscale Moran/SVG,
+  scale-response SVG plots, and ontology reference heatmaps.
+- In default Colab safe mode, the SPIX section uses the central 1M native
+  2 um ROI after standard-analysis objects are cleared from memory.
 - The default SPIX run uses automatic smoothing/equalization parameter sweeps.
 - Total time is acceptable for the workshop slot.
 
@@ -103,10 +115,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - ROI context SHA-256:
   `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`.
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
-- Code cells: 37/37 passed.
+- Code cells: 45/45 passed.
 - Local elapsed time in Colab safe mode after dependencies and data were
-  present: 219.32 seconds.
-- Final process peak RSS in local safe-mode validation: 3.06 GB.
+  present: 253.59 seconds.
+- Final process peak RSS in local safe-mode validation: 4.10 GB.
 - Setup files included in the repo:
   `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
   `notebooks/workshop_helpers.py`.
@@ -124,25 +136,26 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   Live SpaGCN is optional with `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1`; it is not the
   workshop default because it imports TensorFlow and can restart a free Colab
   kernel.
-- CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
-  20 permutations.
+- CCI: neighborhood enrichment, Squidpy `ligrec` with curated LR candidates,
+  and bundled LIANA rank-aggregate results on bundled BayesSpace CCI domains.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
-  equalization, `image_plot_slic` segmentation, and multiscale Moran/SVG.
-- SPIX input in default Colab safe mode: central `500000 x 2515` native 2 um
+  equalization, `image_plot_slic` segmentation, multiscale Moran/SVG,
+  scale-response SVG visualization, and ontology reference heatmaps.
+- SPIX input in default Colab safe mode: central `1000000 x 2515` native 2 um
   bins.
-- Automatic SPIX smoothing recommendation: `graph_k=15`, `graph_t=10`.
-- Automatic SPIX equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
-  `sright=0.5`.
+- Automatic SPIX smoothing recommendation: `graph_k=3`, `graph_t=30`.
+- Automatic SPIX equalization recommendation: `BalanceSimplest`, `sleft=2.0`,
+  `sright=4.0`.
 - SPIX segment counts:
-  `r2` 500000, `r8` 33257, `r16` 8283, `r30` 2343, `r40` 1185,
-  `r50` 777, `r80` 303, `r100` 197, `r150` 89, `r200` 49,
-  `r250` 28, `r300` 21, `r350` 18, `r400` 12, `r450` 12,
-  `r500` 5.
+  `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
+  `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
+  `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21,
+  `r500` 21.
 - Slowest local stages in Colab safe mode: SPIX multiscale segmentation
-  45.00 sec, 8 um preprocessing 42.69 sec, equalization sweep 29.19 sec,
-  smoothing sweep 26.07 sec, import analysis packages 20.09 sec,
-  SPIX multiscale Moran/SVG 16.40 sec. BayesSpace and SpaGCN bundled label
-  loading each took 0.01 sec.
+  64.44 sec, 8 um preprocessing 43.00 sec, smoothing sweep 35.05 sec,
+  equalization sweep 27.66 sec, import analysis packages 20.66 sec,
+  SPIX multiscale Moran/SVG 17.76 sec. BayesSpace, SpaGCN, and LIANA bundled
+  result loading each took 0.01 sec or less.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
@@ -162,9 +175,9 @@ Observed on 2026-07-06 with the earlier 16 um practical notebook:
 - Segment-level spatial LR scoring: 3.89 seconds.
 
 For planning the current Colab-safe notebook, the local analysis pass takes
-about 3.7 minutes after packages and data are present. A fresh Colab runtime
+about 4.3 minutes after packages and data are present. A fresh Colab runtime
 also has to install missing packages and download files, so reserve about
-6-10 minutes until a new real Colab timing report is collected.
+8-12 minutes until a new real Colab timing report is collected.
 
 ## Local Baseline
 

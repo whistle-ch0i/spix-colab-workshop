@@ -19,6 +19,9 @@ DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 ROI_CONTEXT_FILE = "visiumhd_p2_roi_context_1000000_downsample.csv"
 BAYESSPACE_LABELS_FILE = "bayesspace_labels_1m_panel3500.csv"
 SPAGCN_LABELS_FILE = "spagcn_labels_1m_panel3500.csv"
+LIANA_RESULTS_FILE = "liana_rank_aggregate_1m_panel3500.csv"
+ONTOLOGY_REFERENCE_FILE = "crc_scale_svg_ontology_reference.csv"
+ONTOLOGY_LAYER_FILE = "crc_ontology_layer_summary_by_scale.csv"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -34,6 +37,18 @@ DEFAULT_BAYESSPACE_LABELS_URL = (
 DEFAULT_SPAGCN_LABELS_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{SPAGCN_LABELS_FILE}"
+)
+DEFAULT_LIANA_RESULTS_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"data/{LIANA_RESULTS_FILE}"
+)
+DEFAULT_ONTOLOGY_REFERENCE_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"data/{ONTOLOGY_REFERENCE_FILE}"
+)
+DEFAULT_ONTOLOGY_LAYER_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"data/{ONTOLOGY_LAYER_FILE}"
 )
 HELPER_FILE = "workshop_helpers.py"
 DEFAULT_HELPER_URL = (
@@ -107,6 +122,12 @@ def setup_cells(
     bayesspace_labels_sha256: str,
     spagcn_labels_url: str,
     spagcn_labels_sha256: str,
+    liana_results_url: str,
+    liana_results_sha256: str,
+    ontology_reference_url: str,
+    ontology_reference_sha256: str,
+    ontology_layer_url: str,
+    ontology_layer_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -149,6 +170,15 @@ def setup_cells(
     SPAGCN_LABELS_FILE = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_FILE", __SPAGCN_LABELS_FILE__)
     SPAGCN_LABELS_URL = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_URL", __SPAGCN_LABELS_URL__)
     SPAGCN_LABELS_SHA256 = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_SHA256", __SPAGCN_LABELS_SHA256__)
+    LIANA_RESULTS_FILE = os.environ.get("SPIX_WORKSHOP_LIANA_RESULTS_FILE", __LIANA_RESULTS_FILE__)
+    LIANA_RESULTS_URL = os.environ.get("SPIX_WORKSHOP_LIANA_RESULTS_URL", __LIANA_RESULTS_URL__)
+    LIANA_RESULTS_SHA256 = os.environ.get("SPIX_WORKSHOP_LIANA_RESULTS_SHA256", __LIANA_RESULTS_SHA256__)
+    ONTOLOGY_REFERENCE_FILE = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_REFERENCE_FILE", __ONTOLOGY_REFERENCE_FILE__)
+    ONTOLOGY_REFERENCE_URL = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_REFERENCE_URL", __ONTOLOGY_REFERENCE_URL__)
+    ONTOLOGY_REFERENCE_SHA256 = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_REFERENCE_SHA256", __ONTOLOGY_REFERENCE_SHA256__)
+    ONTOLOGY_LAYER_FILE = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_LAYER_FILE", __ONTOLOGY_LAYER_FILE__)
+    ONTOLOGY_LAYER_URL = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_LAYER_URL", __ONTOLOGY_LAYER_URL__)
+    ONTOLOGY_LAYER_SHA256 = os.environ.get("SPIX_WORKSHOP_ONTOLOGY_LAYER_SHA256", __ONTOLOGY_LAYER_SHA256__)
     REQUIREMENTS_FILE = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_FILE", __REQUIREMENTS_FILE__)
     REQUIREMENTS_URL = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_URL", __REQUIREMENTS_URL__)
     BOOTSTRAP_FILE = os.environ.get("SPIX_WORKSHOP_BOOTSTRAP_FILE", __BOOTSTRAP_FILE__)
@@ -239,6 +269,15 @@ def setup_cells(
         .replace("__SPAGCN_LABELS_FILE__", json.dumps(SPAGCN_LABELS_FILE))
         .replace("__SPAGCN_LABELS_URL__", json.dumps(spagcn_labels_url))
         .replace("__SPAGCN_LABELS_SHA256__", json.dumps(spagcn_labels_sha256))
+        .replace("__LIANA_RESULTS_FILE__", json.dumps(LIANA_RESULTS_FILE))
+        .replace("__LIANA_RESULTS_URL__", json.dumps(liana_results_url))
+        .replace("__LIANA_RESULTS_SHA256__", json.dumps(liana_results_sha256))
+        .replace("__ONTOLOGY_REFERENCE_FILE__", json.dumps(ONTOLOGY_REFERENCE_FILE))
+        .replace("__ONTOLOGY_REFERENCE_URL__", json.dumps(ontology_reference_url))
+        .replace("__ONTOLOGY_REFERENCE_SHA256__", json.dumps(ontology_reference_sha256))
+        .replace("__ONTOLOGY_LAYER_FILE__", json.dumps(ONTOLOGY_LAYER_FILE))
+        .replace("__ONTOLOGY_LAYER_URL__", json.dumps(ontology_layer_url))
+        .replace("__ONTOLOGY_LAYER_SHA256__", json.dumps(ontology_layer_sha256))
         .replace("__REQUIREMENTS_FILE__", json.dumps(REQUIREMENTS_FILE))
         .replace("__REQUIREMENTS_URL__", json.dumps(requirements_url))
         .replace("__BOOTSTRAP_FILE__", json.dumps(BOOTSTRAP_FILE))
@@ -887,6 +926,10 @@ def domain_cells() -> list:
                 else:
                     banksy_labels = np.asarray(banksy_label_obj)
                 domain_adata.obs["banksy_domain"] = pd.Categorical(banksy_labels.astype(str))
+                pd.DataFrame({
+                    "barcode": domain_adata.obs_names,
+                    "banksy_domain": domain_adata.obs["banksy_domain"].astype(str).to_numpy(),
+                }).to_csv(OUTPUT_DIR / "banksy" / "banksy_labels.csv", index=False)
                 plt.close("all")
 
             print(f"BANKSY genes: {banksy_adata.n_vars:,}")
@@ -1237,32 +1280,55 @@ def domain_cells() -> list:
         ),
         md(
             """
-            ## 5-8. Domain marker
+            ## 5-8. CCI에 사용할 domain marker
 
-            이후 CCI에서는 BANKSY domain을 사용합니다. 여기서는 각 domain의 marker를
-            먼저 확인합니다.
+            CCI는 domain label 하나를 기준으로 ligand-receptor 신호를 요약합니다.
+            실습에서는 Colab 실행이 흔들리지 않도록, 앞에서 확인한 fixed panel의
+            BayesSpace bundled label을 CCI domain으로 사용합니다. 이렇게 하면
+            neighborhood enrichment, `ligrec`, LIANA가 모두 같은 domain 기준으로
+            비교됩니다.
+
+            먼저 각 CCI domain의 marker를 확인합니다.
             """
         ),
         code(
             """
-            with timed_stage("banksy_domain_markers", STAGE_TIMES):
+            with timed_stage("cci_domain_markers", STAGE_TIMES):
+                CCI_CLUSTER_KEY = "cci_domain"
+                cci_label_path = locate_or_download(
+                    BAYESSPACE_LABELS_FILE,
+                    BAYESSPACE_LABELS_URL,
+                    sha256=BAYESSPACE_LABELS_SHA256,
+                )
+                cci_label_table = pd.read_csv(cci_label_path).set_index("barcode")
+                missing_cci_labels = domain_adata.obs_names.difference(cci_label_table.index)
+                assert len(missing_cci_labels) == 0, "CCI domain label과 현재 domain panel이 맞지 않습니다."
+                domain_adata.obs[CCI_CLUSTER_KEY] = pd.Categorical(
+                    cci_label_table.loc[
+                        domain_adata.obs_names,
+                        "bayesspace_domain",
+                    ].astype(str).to_numpy()
+                )
+
                 sc.tl.rank_genes_groups(
                     domain_adata,
-                    groupby="banksy_domain",
+                    groupby=CCI_CLUSTER_KEY,
                     layer="log_norm",
                     use_raw=False,
                     method="t-test_overestim_var",
-                    key_added="banksy_domain_markers",
+                    key_added="cci_domain_markers",
                 )
                 marker_df = sc.get.rank_genes_groups_df(
                     domain_adata,
                     group=None,
-                    key="banksy_domain_markers",
+                    key="cci_domain_markers",
                 )
                 marker_df = marker_df.sort_values(["group", "scores"], ascending=[True, False])
                 marker_df = marker_df.groupby("group", as_index=False).head(5)
                 marker_df = marker_df[["group", "names", "scores", "logfoldchanges", "pvals_adj"]]
 
+            print("CCI domain source: bundled BayesSpace labels")
+            print("clusters:", domain_adata.obs[CCI_CLUSTER_KEY].nunique())
             display(marker_df)
             """
         ),
@@ -1285,13 +1351,14 @@ def cci_cells() -> list:
 
             여기서는 두 단계를 분리합니다. 먼저 neighborhood enrichment로 어떤
             domain 쌍이 실제로 자주 붙어 있는지 보고, 그 다음 `ligrec` 결과에서
-            그 접촉을 설명할 만한 ligand-receptor pair를 찾습니다.
+            그 접촉을 설명할 만한 ligand-receptor pair를 찾습니다. 마지막으로
+            LIANA rank-aggregate 결과를 함께 읽어서, 같은 domain pair가 여러
+            LR scoring 관점에서도 반복해서 보이는지 확인합니다.
             """
         ),
         code(
             """
             with timed_stage("cci_neighborhood_enrichment", STAGE_TIMES):
-                CCI_CLUSTER_KEY = "banksy_domain"
                 domain_adata.obs[CCI_CLUSTER_KEY] = domain_adata.obs[CCI_CLUSTER_KEY].astype("category")
                 categories = domain_adata.obs[CCI_CLUSTER_KEY].cat.categories
 
@@ -1329,7 +1396,7 @@ def cci_cells() -> list:
             ## 6-1. Ligand-receptor 후보 확인
 
             다음은 발현 기반 ligand-receptor 분석입니다. 실습 시간에는 전체 database를
-            새로 받지 않고, colorectal tissue에서 해석하기 쉬운 후보 pair만 사용합니다.
+            새로 받지 않고, colorectal tissue에서 해석하기 쉬운 후보 pair를 사용합니다.
 
             여기서 목표는 pair 수를 많이 뽑는 것이 아니라, 앞에서 본 domain 접촉
             구조와 LR 발현이 같은 방향으로 설명되는지 확인하는 것입니다.
@@ -1339,8 +1406,18 @@ def cci_cells() -> list:
             """
             with timed_stage("cci_ligrec", STAGE_TIMES):
                 LR_CANDIDATES = pd.DataFrame({
-                    "source": ["SPP1", "MIF", "CD74", "COL1A1", "COL1A2", "FN1", "LAMB1", "JAG1", "APOE", "LGALS3", "TGFBI"],
-                    "target": ["CD44", "CD74", "MIF", "ITGB1", "ITGB1", "ITGA5", "ITGB1", "NOTCH1", "LRP1", "ITGB1", "ITGB5"],
+                    "source": [
+                        "SPP1", "MIF", "CD74", "COL1A1", "COL1A2", "COL4A1",
+                        "FN1", "FN1", "FN1", "LAMB1", "LAMB1", "JAG1",
+                        "APOE", "LGALS3", "LGALS1", "TGFBI", "VIM", "APP",
+                        "TIMP2", "ADAM9",
+                    ],
+                    "target": [
+                        "CD44", "CD74", "MIF", "ITGB1", "ITGB1", "ITGB1",
+                        "ITGA5", "CD44", "ITGA6", "ITGB1", "ITGA6", "NOTCH1",
+                        "LRP1", "ITGB1", "CD44", "ITGB5", "CD44", "CD74",
+                        "CD44", "ITGAV",
+                    ],
                 })
 
                 ligrec_interactions = LR_CANDIDATES[
@@ -1419,7 +1496,217 @@ def cci_cells() -> list:
         ),
         md(
             """
-            ## 6-4. SPIX 전에 메모리 정리
+            ## 6-4. LIANA rank-aggregate
+
+            `ligrec`은 Squidpy 안에서 바로 쓸 수 있어 실습에 좋고, LIANA는 여러
+            ligand-receptor scoring 방법을 모아 rank를 통합해 보는 프레임워크입니다.
+
+            Colab에서 LIANA를 새로 설치하고 consensus resource를 계산하면 시간이
+            흔들릴 수 있으므로, 기본값에서는 같은 ROI와 같은 3,500-bin BANKSY panel에서
+            미리 계산해 둔 LIANA rank-aggregate 결과를 읽습니다. live LIANA 실행을
+            따로 확인하고 싶으면 첫 cell에서 `SPIX_WORKSHOP_RUN_LIANA_LIVE=1`을
+            설정하면 됩니다.
+            """
+        ),
+        code(
+            """
+            with timed_stage("cci_liana_rank_aggregate", STAGE_TIMES):
+                RUN_LIANA_LIVE = os.environ.get("SPIX_WORKSHOP_RUN_LIANA_LIVE", "0").lower()
+                RUN_LIANA_LIVE = RUN_LIANA_LIVE in {"1", "true", "yes"}
+                liana_source = "bundled LIANA rank-aggregate"
+
+                if RUN_LIANA_LIVE:
+                    if importlib.util.find_spec("liana") is None:
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "liana==1.5.1"])
+                    import liana as li
+
+                    liana_resource = li.rs.select_resource("consensus")
+                    liana_resource = liana_resource[
+                        liana_resource["ligand"].isin(domain_adata.var_names)
+                        & liana_resource["receptor"].isin(domain_adata.var_names)
+                    ].copy()
+                    li.mt.rank_aggregate(
+                        domain_adata,
+                        groupby=CCI_CLUSTER_KEY,
+                        resource=liana_resource,
+                        expr_prop=0.05,
+                        min_cells=10,
+                        return_all_lrs=False,
+                        use_raw=False,
+                        layer="log_norm",
+                        n_perms=100,
+                        seed=7,
+                        n_jobs=N_JOBS,
+                        inplace=True,
+                        verbose=False,
+                    )
+                    liana_table = domain_adata.uns["liana_res"].copy()
+                    liana_source = "live LIANA rank-aggregate"
+                else:
+                    liana_results_path = locate_or_download(
+                        LIANA_RESULTS_FILE,
+                        LIANA_RESULTS_URL,
+                        sha256=LIANA_RESULTS_SHA256,
+                    )
+                    liana_table = pd.read_csv(liana_results_path)
+
+                liana_table["source"] = liana_table["source"].astype(str)
+                liana_table["target"] = liana_table["target"].astype(str)
+                cci_domain_labels = set(domain_adata.obs[CCI_CLUSTER_KEY].astype(str))
+                liana_domain_labels = set(liana_table["source"]) | set(liana_table["target"])
+                missing_liana_domains = sorted(liana_domain_labels - cci_domain_labels)
+                assert not missing_liana_domains, (
+                    "LIANA result labels do not match current CCI domains: "
+                    + ", ".join(missing_liana_domains)
+                )
+                liana_table["interaction"] = (
+                    liana_table["ligand_complex"].astype(str)
+                    + "-"
+                    + liana_table["receptor_complex"].astype(str)
+                )
+                liana_table["rank_evidence"] = -np.log10(liana_table["magnitude_rank"].clip(lower=1e-12))
+                liana_table["spatial_zscore"] = [
+                    nhood_zscore_df.loc[row.source, row.target]
+                    if row.source in nhood_zscore_df.index and row.target in nhood_zscore_df.columns
+                    else np.nan
+                    for row in liana_table.itertuples(index=False)
+                ]
+                liana_display = liana_table.sort_values(
+                    ["rank_evidence", "lr_means"],
+                    ascending=[False, False],
+                ).head(20)
+
+            print("source:", liana_source)
+            display(liana_display[[
+                "source",
+                "target",
+                "interaction",
+                "rank_evidence",
+                "lr_means",
+                "cellphone_pvals",
+                "spatial_zscore",
+            ]])
+            """
+        ),
+        md(
+            """
+            ## 6-5. LIANA evidence와 공간 접촉을 같이 보기
+
+            CCI 후보는 발현 점수만 높다고 충분하지 않습니다. 공간전사체에서는
+            sender와 receiver domain이 실제로 붙어 있는지도 같이 봐야 합니다.
+            아래 그림은 LIANA rank evidence가 높은 LR context 중에서, neighborhood
+            enrichment z-score도 함께 높은 조합을 먼저 보여줍니다.
+            """
+        ),
+        code(
+            """
+            with timed_stage("cci_liana_spatial_support", STAGE_TIMES):
+                liana_support = liana_table.dropna(subset=["spatial_zscore"]).copy()
+                liana_support = liana_support.sort_values(
+                    ["spatial_zscore", "rank_evidence", "lr_means"],
+                    ascending=[False, False, False],
+                ).head(30)
+                liana_support.to_csv(OUTPUT_DIR / "liana_spatial_support.csv", index=False)
+
+                fig, ax = plt.subplots(figsize=(7.0, 4.8))
+                scatter_size = 30 + 55 * liana_support["lr_means"].clip(lower=0)
+                sc_plot = ax.scatter(
+                    liana_support["spatial_zscore"],
+                    liana_support["rank_evidence"],
+                    s=scatter_size,
+                    c=liana_support["lr_means"],
+                    cmap="viridis",
+                    alpha=0.82,
+                    edgecolor="white",
+                    linewidth=0.6,
+                )
+                for _, row in liana_support.head(10).iterrows():
+                    ax.text(
+                        row["spatial_zscore"],
+                        row["rank_evidence"] + 0.04,
+                        row["interaction"],
+                        fontsize=8,
+                        ha="center",
+                    )
+                ax.axvline(0, color="#777777", linewidth=0.8, linestyle=":")
+                ax.set_xlabel("Neighborhood enrichment z-score")
+                ax.set_ylabel("LIANA rank evidence (-log10 rank)")
+                ax.set_title("LR contexts supported by expression and spatial contact")
+                fig.colorbar(sc_plot, ax=ax, fraction=0.046, pad=0.04, label="LIANA LR mean")
+                plt.show()
+
+            display(liana_support[[
+                "source",
+                "target",
+                "interaction",
+                "spatial_zscore",
+                "rank_evidence",
+                "lr_means",
+                "cellphone_pvals",
+            ]])
+            """
+        ),
+        code(
+            """
+            with timed_stage("cci_liana_domain_network", STAGE_TIMES):
+                centroid_table = pd.DataFrame(
+                    {
+                        "domain": domain_adata.obs[CCI_CLUSTER_KEY].astype(str).to_numpy(),
+                        "x": domain_coords[:, 0],
+                        "y": domain_coords[:, 1],
+                    }
+                ).groupby("domain", as_index=True)[["x", "y"]].mean()
+                domain_sizes = domain_adata.obs[CCI_CLUSTER_KEY].astype(str).value_counts()
+
+                network_edges = liana_support[
+                    liana_support["source"].isin(centroid_table.index)
+                    & liana_support["target"].isin(centroid_table.index)
+                    & (liana_support["spatial_zscore"] > 0)
+                ].head(18)
+
+                fig, ax = plt.subplots(figsize=(5.8, 5.2))
+                ax.scatter(
+                    centroid_table["x"],
+                    centroid_table["y"],
+                    s=[90 + domain_sizes.get(idx, 0) * 0.18 for idx in centroid_table.index],
+                    c="#f5f5f5",
+                    edgecolor="#333333",
+                    linewidth=1.2,
+                    zorder=3,
+                )
+                for domain, row in centroid_table.iterrows():
+                    ax.text(row["x"], row["y"], str(domain), ha="center", va="center", fontsize=10, zorder=4)
+
+                for _, edge in network_edges.iterrows():
+                    start = centroid_table.loc[edge["source"]]
+                    end = centroid_table.loc[edge["target"]]
+                    width = 0.7 + 0.4 * min(edge["rank_evidence"], 8)
+                    ax.annotate(
+                        "",
+                        xy=(end["x"], end["y"]),
+                        xytext=(start["x"], start["y"]),
+                        arrowprops=dict(
+                            arrowstyle="->",
+                            color="#b8322d",
+                            lw=width,
+                            alpha=0.45,
+                            shrinkA=12,
+                            shrinkB=12,
+                        ),
+                        zorder=2,
+                    )
+
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_title("Domain-level LIANA-supported communication")
+                plt.show()
+            """
+        ),
+        md(
+            """
+            ## 6-6. SPIX 전에 메모리 정리
 
             다음 파트는 2 um bin을 직접 다루기 때문에 메모리를 많이 씁니다. 앞에서
             만든 8 um 분석 객체와 domain/CCI 중간 객체는 여기서 정리합니다. 표와
@@ -1447,6 +1734,11 @@ def cci_cells() -> list:
                     "ligrec_table",
                     "ligrec_display",
                     "heatmap_table",
+                    "liana_table",
+                    "liana_display",
+                    "liana_support",
+                    "network_edges",
+                    "centroid_table",
                     "nhood_zscore",
                     "nhood_count",
                     "nhood_zscore_df",
@@ -1482,10 +1774,10 @@ def spix_cells() -> list:
             선택이었습니다. SPIX는 반대로 native 2 um 정보를 보존한 채 여러 scale의
             tissue unit을 만듭니다.
 
-            Colab free-tier에서는 런타임이 메모리 부족으로 조용히 종료될 수 있어,
-            기본 safe mode에서 SPIX 입력을 중앙 500k 2 um bin으로 제한합니다. 1M
-            전체 reference run을 확인하려면 첫 cell에서
-            `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=1000000`으로 바꾸면 됩니다.
+            앞선 실제 Colab 실행에서 peak process RSS가 약 3.1 GB로 확인되어,
+            기본값은 1M ROI 전체를 SPIX에 넣도록 올렸습니다. 만약 현장 runtime이
+            불안정하면 첫 cell에서 `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=500000`으로
+            낮추면 같은 흐름을 더 짧게 확인할 수 있습니다.
             """
         ),
         code(
@@ -1502,7 +1794,7 @@ def spix_cells() -> list:
             ]
             PITCH_UM = 2.0
             SPIX_MAX_WORKERS = int(os.environ.get("SPIX_WORKSHOP_SPIX_MAX_WORKERS", str(N_JOBS)))
-            DEFAULT_SPIX_MAX_2UM_BINS = 500_000 if COLAB_SAFE_MODE else adata_2um.n_obs
+            DEFAULT_SPIX_MAX_2UM_BINS = adata_2um.n_obs
             SPIX_MAX_2UM_BINS = int(os.environ.get(
                 "SPIX_WORKSHOP_SPIX_MAX_2UM_BINS",
                 str(DEFAULT_SPIX_MAX_2UM_BINS),
@@ -1542,6 +1834,7 @@ def spix_cells() -> list:
                     spix_adata = adata_2um.copy()
                     spix_input_mode = "full 2um ROI"
 
+                spix_coords = np.asarray(spix_adata.obsm["spatial"], dtype=float)
                 gc.collect()
                 print("SPIX input:", spix_input_mode)
                 print_memory("after SPIX input copy")
@@ -1703,7 +1996,43 @@ def spix_cells() -> list:
         ),
         md(
             """
-            ## 7-4. Multiscale segmentation
+            ## 7-4. Equalized embedding image preview
+
+            SPIX가 segmentation에 사용하는 것은 단일 gene map이 아니라,
+            smoothing/equalization을 거친 multichannel embedding image입니다.
+            아래 그림은 앞 세 개 channel을 RGB처럼 겹쳐 본 것입니다. 실제 분석은
+            30개 channel을 모두 사용하지만, 이 preview를 보면 조직 구조가
+            segmentation 입력으로 어떻게 들어가는지 직관적으로 볼 수 있습니다.
+            """
+        ),
+        code(
+            """
+            with timed_stage("spix_equalized_embedding_preview", STAGE_TIMES):
+                preview_idx = sample_indices(spix_adata.n_obs, max_points=160_000, seed=11)
+                preview_values = np.asarray(spix_adata.obsm["X_embedding_equalize"][preview_idx, :3])
+                low = np.percentile(preview_values, 1, axis=0)
+                high = np.percentile(preview_values, 99, axis=0)
+                rgb_values = np.clip((preview_values - low) / (high - low + 1e-6), 0, 1)
+
+                fig, ax = plt.subplots(figsize=(5.2, 4.8))
+                ax.scatter(
+                    spix_coords[preview_idx, 0],
+                    spix_coords[preview_idx, 1],
+                    s=0.8,
+                    c=rgb_values,
+                    rasterized=True,
+                )
+                ax.invert_yaxis()
+                ax.set_aspect("equal")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_title("Equalized embedding preview")
+                plt.show()
+            """
+        ),
+        md(
+            """
+            ## 7-5. Multiscale segmentation
 
             compactness를 하나로 고정하지 않고 후보값을 넘깁니다. SPIX가 각 scale에서
             요청한 크기에 맞는 segmentation을 고릅니다.
@@ -1748,7 +2077,7 @@ def spix_cells() -> list:
         ),
         md(
             """
-            ## 7-5. SPIX scale별 SVG
+            ## 7-6. SPIX scale별 SVG
 
             같은 gene이라도 2 um bin에서 볼 때와 100 um tissue unit에서 볼 때의
             공간성이 달라질 수 있습니다. 이 셀은 scale별 Moran rank를 계산합니다.
@@ -1778,9 +2107,9 @@ def spix_cells() -> list:
         ),
         md(
             """
-            ## 7-6. 대표 scale map
+            ## 7-7. 대표 scale map
 
-            50, 100, 500 um scale을 먼저 확인합니다. 필요하면
+            8, 30, 100, 500 um scale을 먼저 확인합니다. 필요하면
             `SPIX_WORKSHOP_SPIX_PLOT_SCALES_UM` 값을 바꾸면 됩니다.
             """
         ),
@@ -1793,7 +2122,7 @@ def spix_cells() -> list:
         code(
             """
             with timed_stage("spix_scale_overview", STAGE_TIMES):
-                plot_scales_um = os.environ.get("SPIX_WORKSHOP_SPIX_PLOT_SCALES_UM", "50,100,500")
+                plot_scales_um = os.environ.get("SPIX_WORKSHOP_SPIX_PLOT_SCALES_UM", "8,30,100,500")
                 plot_scales_um = [float(x.strip()) for x in plot_scales_um.split(",") if x.strip()]
                 plot_segment_index = segment_index[
                     segment_index["resolution"].astype(float).isin(plot_scales_um)
@@ -1819,7 +2148,7 @@ def spix_cells() -> list:
                     color_codes = spix_adata.obs[obs_key].cat.codes.to_numpy()
                     spatial_scatter(
                         ax,
-                        coords_2um[spix_plot_idx],
+                        spix_coords[spix_plot_idx],
                         values=color_codes[spix_plot_idx],
                         title=f"{row['scale_id']} / {int(row['observed_obs_n_segments'])} units",
                         size=1.5,
@@ -1836,7 +2165,292 @@ def spix_cells() -> list:
                     spix_adata.n_obs / spix_scale_summary["observed_obs_n_segments"]
                 )
 
+                fig, axes = plt.subplots(1, 2, figsize=(9.0, 3.6), constrained_layout=True)
+                axes[0].plot(
+                    spix_scale_summary["resolution"],
+                    spix_scale_summary["observed_obs_n_segments"],
+                    marker="o",
+                    color="#1f77b4",
+                )
+                axes[0].set_xscale("log")
+                axes[0].set_yscale("log")
+                axes[0].set_xlabel("Scale (um)")
+                axes[0].set_ylabel("Number of SPIX units")
+                axes[0].set_title("Multiscale unit count")
+
+                axes[1].plot(
+                    spix_scale_summary["resolution"],
+                    spix_scale_summary["mean_2um_bins_per_unit"],
+                    marker="o",
+                    color="#d95f02",
+                )
+                axes[1].set_xscale("log")
+                axes[1].set_yscale("log")
+                axes[1].set_xlabel("Scale (um)")
+                axes[1].set_ylabel("Mean 2 um bins per unit")
+                axes[1].set_title("Aggregation strength")
+                plt.show()
+
             display(spix_scale_summary)
+            """
+        ),
+        md(
+            """
+            ## 7-8. Scale-response SVG 요약
+
+            논문에서 중요한 포인트는 “SVG를 한 scale에서만 고르는 것”이 아니라,
+            gene마다 강하게 보이는 scale이 다르다는 점입니다. 여기서는 scale을
+            fine, mid, coarse로 나누고, 각 group에서 Moran's I가 높은 gene을
+            정리합니다.
+
+            - Fine: 2-16 um, 거의 native bin에 가까운 국소 신호
+            - Mid: 30-100 um, neighborhood/domain 경계 근처 신호
+            - Coarse: 150-500 um, 더 큰 tissue architecture 신호
+            """
+        ),
+        code(
+            """
+            with timed_stage("spix_scale_response_summary", STAGE_TIMES):
+                scale_meta = segment_index[["scale_id", "resolution"]].copy()
+
+                def scale_group_key(resolution_um):
+                    if resolution_um <= 16:
+                        return "fine_hclust"
+                    if resolution_um <= 100:
+                        return "mid_hclust"
+                    return "coarse_hclust"
+
+                scale_group_labels = {
+                    "fine_hclust": "Fine",
+                    "mid_hclust": "Mid",
+                    "coarse_hclust": "Coarse",
+                }
+                scale_group_order = ["fine_hclust", "mid_hclust", "coarse_hclust"]
+                scale_meta["scale_group"] = scale_meta["resolution"].map(scale_group_key)
+                scale_meta["scale_group_label"] = scale_meta["scale_group"].map(scale_group_labels)
+
+                score_columns = [col for col in spix_score_df.columns if col.startswith("I_")]
+                score_table = spix_score_df[score_columns].copy()
+                score_table["gene"] = score_table.index
+                score_long = score_table.melt(
+                    id_vars="gene",
+                    var_name="scale_id",
+                    value_name="moran_i",
+                )
+                score_long["scale_id"] = score_long["scale_id"].str.replace("I_", "", regex=False)
+                score_long = score_long.merge(scale_meta, on="scale_id", how="left")
+
+                best_idx = score_long.groupby(["scale_group", "gene"])["moran_i"].idxmax()
+                scale_response_table = score_long.loc[best_idx].copy()
+                scale_response_table = scale_response_table.sort_values(
+                    ["scale_group", "moran_i"],
+                    ascending=[True, False],
+                )
+                scale_response_top = (
+                    scale_response_table
+                    .groupby("scale_group", group_keys=False)
+                    .head(15)
+                    .copy()
+                )
+                scale_response_top["scale_group"] = pd.Categorical(
+                    scale_response_top["scale_group"],
+                    categories=scale_group_order,
+                    ordered=True,
+                )
+                scale_response_top = scale_response_top.sort_values(["scale_group", "moran_i"], ascending=[True, False])
+                scale_response_top.to_csv(OUTPUT_DIR / "spix_scale_response_top_genes.csv", index=False)
+
+            display(scale_response_top[[
+                "scale_group_label",
+                "gene",
+                "scale_id",
+                "resolution",
+                "moran_i",
+            ]])
+            """
+        ),
+        code(
+            """
+            with timed_stage("spix_scale_response_heatmap", STAGE_TIMES):
+                selected_scale_genes = (
+                    scale_response_top
+                    .groupby("scale_group", group_keys=False)
+                    .head(6)["gene"]
+                    .drop_duplicates()
+                    .tolist()
+                )
+                moran_matrix = spix_score_df.loc[selected_scale_genes, score_columns].copy()
+                moran_matrix.columns = [col.replace("I_", "") for col in moran_matrix.columns]
+                row_min = moran_matrix.min(axis=1)
+                row_max = moran_matrix.max(axis=1)
+                moran_matrix_scaled = moran_matrix.sub(row_min, axis=0).div(row_max - row_min + 1e-6, axis=0)
+
+                fig, ax = plt.subplots(figsize=(8.8, max(4.0, 0.28 * len(selected_scale_genes))))
+                im = ax.imshow(moran_matrix_scaled.to_numpy(), aspect="auto", cmap="magma")
+                ax.set_xticks(np.arange(moran_matrix_scaled.shape[1]))
+                ax.set_xticklabels(moran_matrix_scaled.columns, rotation=45, ha="right")
+                ax.set_yticks(np.arange(moran_matrix_scaled.shape[0]))
+                ax.set_yticklabels(moran_matrix_scaled.index)
+                ax.set_title("Scale response of top multiscale SVGs")
+                fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02, label="row-scaled Moran's I")
+                plt.show()
+
+                trajectory_genes = (
+                    scale_response_top
+                    .groupby("scale_group", group_keys=False)
+                    .head(2)["gene"]
+                    .drop_duplicates()
+                    .tolist()
+                )
+                resolution_lookup = scale_meta.set_index("scale_id")["resolution"]
+                fig, ax = plt.subplots(figsize=(7.2, 4.2))
+                for gene in trajectory_genes:
+                    y = moran_matrix.loc[gene]
+                    x = [resolution_lookup.loc[scale] for scale in y.index]
+                    ax.plot(x, y.to_numpy(), marker="o", linewidth=1.4, label=gene)
+                ax.set_xscale("log")
+                ax.set_xlabel("Scale (um)")
+                ax.set_ylabel("Moran's I")
+                ax.set_title("Representative scale-response trajectories")
+                ax.legend(fontsize=8, ncol=2)
+                plt.show()
+            """
+        ),
+        code(
+            """
+            with timed_stage("spix_scale_response_gene_maps", STAGE_TIMES):
+                map_genes = (
+                    scale_response_top
+                    .groupby("scale_group", group_keys=False)
+                    .head(1)["gene"]
+                    .drop_duplicates()
+                    .tolist()
+                )
+                map_idx = sample_indices(spix_adata.n_obs, max_points=170_000, seed=13)
+
+                fig, axes = plt.subplots(
+                    1,
+                    len(map_genes),
+                    figsize=(4.2 * len(map_genes), 3.9),
+                    constrained_layout=True,
+                )
+                if len(map_genes) == 1:
+                    axes = [axes]
+
+                for ax, gene in zip(axes, map_genes):
+                    gene_index = spix_adata.var_names.get_loc(gene)
+                    gene_values = np.log1p(sparse_vector(spix_adata.X, gene_index))
+                    group_label = scale_response_top.loc[
+                        scale_response_top["gene"] == gene,
+                        "scale_group_label",
+                    ].iloc[0]
+                    spatial_scatter(
+                        ax,
+                        spix_coords[map_idx],
+                        values=gene_values[map_idx],
+                        title=f"{group_label}: {gene}",
+                        size=1.0,
+                        cmap="magma",
+                    )
+                plt.show()
+            """
+        ),
+        md(
+            """
+            ## 7-9. Ontology reference: scale-response SVG가 어떤 biology를 잡는가
+
+            논문에서는 scale-response SVG를 fine, mid, coarse group으로 나눈 뒤,
+            CellMarker, Human Cell Atlas, CRC/pathway database에서 enrichment를
+            확인했습니다. 실습 시간에는 외부 Enrichr API를 새로 호출하지 않고,
+            manuscript reproduction에서 저장한 CRC P2 Enrichr 요약표를 읽어
+            해석 방식을 보여줍니다.
+
+            이 표는 현재 Colab run에서 새로 계산한 p-value가 아니라, 논문 재현
+            패키지에서 고정해 둔 reference입니다. 수업에서는 “scale별 SVG gene set을
+            어떻게 biology로 읽는가”를 이해하는 용도로 사용합니다.
+            """
+        ),
+        code(
+            """
+            with timed_stage("spix_ontology_reference_heatmaps", STAGE_TIMES):
+                ontology_reference_path = locate_or_download(
+                    ONTOLOGY_REFERENCE_FILE,
+                    ONTOLOGY_REFERENCE_URL,
+                    sha256=ONTOLOGY_REFERENCE_SHA256,
+                )
+                ontology_layer_path = locate_or_download(
+                    ONTOLOGY_LAYER_FILE,
+                    ONTOLOGY_LAYER_URL,
+                    sha256=ONTOLOGY_LAYER_SHA256,
+                )
+                ontology_reference = pd.read_csv(ontology_reference_path)
+                ontology_layer_summary = pd.read_csv(ontology_layer_path)
+
+                ontology_reference["scale_group_label"] = ontology_reference["scale_group"].map(scale_group_labels)
+                ontology_reference["term_short"] = ontology_reference["term"].astype(str).str.slice(0, 48)
+                ontology_top = (
+                    ontology_reference
+                    .sort_values(["panel", "scale_group", "adjusted_p_value", "neg_log10_fdr"])
+                    .groupby(["panel", "scale_group"], group_keys=False)
+                    .head(4)
+                    .copy()
+                )
+                ontology_top.to_csv(OUTPUT_DIR / "crc_scale_svg_ontology_reference_top.csv", index=False)
+
+                panels_to_plot = [
+                    ("human_cell_atlas", "Human Cell Atlas"),
+                    ("cellmarker_2024", "CellMarker 2024"),
+                    ("crc_disease_pathway", "CRC / pathway"),
+                ]
+                fig, axes = plt.subplots(1, len(panels_to_plot), figsize=(15.0, 5.6), constrained_layout=True)
+                for ax, (panel_key, panel_title) in zip(axes, panels_to_plot):
+                    panel_table = ontology_top[ontology_top["panel"] == panel_key].copy()
+                    heatmap_table = panel_table.pivot_table(
+                        index="term_short",
+                        columns="scale_group_label",
+                        values="neg_log10_fdr",
+                        aggfunc="max",
+                        fill_value=0,
+                    )
+                    heatmap_table = heatmap_table.reindex(columns=["Fine", "Mid", "Coarse"]).fillna(0)
+                    im = ax.imshow(heatmap_table.to_numpy(), aspect="auto", cmap="Reds")
+                    ax.set_xticks(np.arange(heatmap_table.shape[1]))
+                    ax.set_xticklabels(heatmap_table.columns)
+                    ax.set_yticks(np.arange(heatmap_table.shape[0]))
+                    ax.set_yticklabels(heatmap_table.index, fontsize=7)
+                    ax.set_title(panel_title)
+                fig.colorbar(im, ax=axes, fraction=0.02, pad=0.02, label="-log10(FDR)")
+                plt.show()
+
+                ontology_layer_summary["scale_group_label"] = ontology_layer_summary["dominant_scale_group"].map(scale_group_labels)
+                layer_heatmap = ontology_layer_summary.pivot_table(
+                    index="biological_layer",
+                    columns="scale_group_label",
+                    values="best_neg_log10_fdr",
+                    aggfunc="max",
+                    fill_value=0,
+                ).reindex(columns=["Fine", "Mid", "Coarse"]).fillna(0)
+
+                fig, ax = plt.subplots(figsize=(6.2, 3.8))
+                im = ax.imshow(layer_heatmap.to_numpy(), aspect="auto", cmap="Reds")
+                ax.set_xticks(np.arange(layer_heatmap.shape[1]))
+                ax.set_xticklabels(layer_heatmap.columns)
+                ax.set_yticks(np.arange(layer_heatmap.shape[0]))
+                ax.set_yticklabels(layer_heatmap.index)
+                ax.set_title("Biological layers enriched by scale group")
+                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="best -log10(FDR)")
+                plt.show()
+
+            display(ontology_top[[
+                "panel",
+                "scale_group_label",
+                "library",
+                "term",
+                "adjusted_p_value",
+                "neg_log10_fdr",
+                "overlap_genes",
+            ]].head(24))
+            display(layer_heatmap)
             """
         ),
     ]
@@ -1916,6 +2530,12 @@ def combined_notebook(
     bayesspace_labels_sha256: str,
     spagcn_labels_url: str,
     spagcn_labels_sha256: str,
+    liana_results_url: str,
+    liana_results_sha256: str,
+    ontology_reference_url: str,
+    ontology_reference_sha256: str,
+    ontology_layer_url: str,
+    ontology_layer_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -1936,8 +2556,9 @@ def combined_notebook(
             4. **SPIX**: 2 um 정보를 여러 scale의 tissue unit으로 어떻게 바꿀 수 있는가?
 
             앞의 세 파트는 8 um pseudobulk에서 안정적으로 진행하고, 마지막 SPIX
-            파트는 2 um bin을 직접 사용합니다. Colab safe mode에서는 중앙 500k
-            2 um bin으로 시작하고, 여유가 있으면 1M ROI까지 올릴 수 있습니다.
+            파트는 1M 2 um ROI를 직접 사용합니다. 현장 runtime이 불안정하면
+            `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=500000`으로 낮춰서 같은 흐름을
+            짧게 확인할 수 있습니다.
 
             코드는 한 셀에서 한 가지 일만 하도록 나누었습니다. 수업 중에는 표와
             그림을 먼저 보고, 필요할 때만 코드 안의 파라미터를 확인하면 됩니다.
@@ -1970,6 +2591,12 @@ def combined_notebook(
             bayesspace_labels_sha256,
             spagcn_labels_url,
             spagcn_labels_sha256,
+            liana_results_url,
+            liana_results_sha256,
+            ontology_reference_url,
+            ontology_reference_sha256,
+            ontology_layer_url,
+            ontology_layer_sha256,
             requirements_url,
             bootstrap_url,
             helper_url,
@@ -2005,6 +2632,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bayesspace-labels-url", default=DEFAULT_BAYESSPACE_LABELS_URL)
     parser.add_argument("--spagcn-labels-file", default=f"data/{SPAGCN_LABELS_FILE}")
     parser.add_argument("--spagcn-labels-url", default=DEFAULT_SPAGCN_LABELS_URL)
+    parser.add_argument("--liana-results-file", default=f"data/{LIANA_RESULTS_FILE}")
+    parser.add_argument("--liana-results-url", default=DEFAULT_LIANA_RESULTS_URL)
+    parser.add_argument("--ontology-reference-file", default=f"data/{ONTOLOGY_REFERENCE_FILE}")
+    parser.add_argument("--ontology-reference-url", default=DEFAULT_ONTOLOGY_REFERENCE_URL)
+    parser.add_argument("--ontology-layer-file", default=f"data/{ONTOLOGY_LAYER_FILE}")
+    parser.add_argument("--ontology-layer-url", default=DEFAULT_ONTOLOGY_LAYER_URL)
     parser.add_argument("--requirements-url", default=DEFAULT_REQUIREMENTS_URL)
     parser.add_argument("--bootstrap-url", default=DEFAULT_BOOTSTRAP_URL)
     parser.add_argument("--helper-url", default=DEFAULT_HELPER_URL)
@@ -2024,6 +2657,14 @@ def main() -> None:
     )
     spagcn_labels_path = Path(args.spagcn_labels_file)
     spagcn_labels_sha256 = sha256sum(spagcn_labels_path) if spagcn_labels_path.exists() else ""
+    liana_results_path = Path(args.liana_results_file)
+    liana_results_sha256 = sha256sum(liana_results_path) if liana_results_path.exists() else ""
+    ontology_reference_path = Path(args.ontology_reference_file)
+    ontology_reference_sha256 = (
+        sha256sum(ontology_reference_path) if ontology_reference_path.exists() else ""
+    )
+    ontology_layer_path = Path(args.ontology_layer_file)
+    ontology_layer_sha256 = sha256sum(ontology_layer_path) if ontology_layer_path.exists() else ""
     notebook_dir = Path(args.notebook_dir)
 
     name, nb = combined_notebook(
@@ -2035,6 +2676,12 @@ def main() -> None:
         bayesspace_labels_sha256,
         args.spagcn_labels_url,
         spagcn_labels_sha256,
+        args.liana_results_url,
+        liana_results_sha256,
+        args.ontology_reference_url,
+        ontology_reference_sha256,
+        args.ontology_layer_url,
+        ontology_layer_sha256,
         args.requirements_url,
         args.bootstrap_url,
         args.helper_url,
@@ -2050,6 +2697,9 @@ def main() -> None:
                 "roi_context_sha256": roi_context_sha256,
                 "bayesspace_labels_sha256": bayesspace_labels_sha256,
                 "spagcn_labels_sha256": spagcn_labels_sha256,
+                "liana_results_sha256": liana_results_sha256,
+                "ontology_reference_sha256": ontology_reference_sha256,
+                "ontology_layer_sha256": ontology_layer_sha256,
             },
             indent=2,
         )
