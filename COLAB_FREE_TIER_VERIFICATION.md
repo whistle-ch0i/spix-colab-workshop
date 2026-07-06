@@ -79,9 +79,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4`
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
-  - local elapsed after dependencies and data were present: 358.72 seconds
-  - local elapsed with bundled BayesSpace labels forced: 320.85 seconds
-  - code cells: 36/36 passed
+  - local elapsed in Colab safe mode after dependencies and data were present:
+    195.32 seconds
+  - final process peak RSS in local safe-mode validation: 3.26 GB
+  - code cells: 37/37 passed
   - setup files are included in the repo:
     `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
     `notebooks/workshop_helpers.py`
@@ -101,22 +102,27 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   - BayesSpace runs live only if R BayesSpace is already available or
     `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` is set. The default Colab fallback
     uses bundled BayesSpace labels for the fixed domain panel.
-  - SPIX section uses the full `1000000 x 2515` ROI
-  - SPIX follows the VisiumHD P2 manuscript/reproduction path: 30-dimensional
-    PCA/log-normalized embedding, graph smoothing before equalization,
+  - standard sections use the full `1000000 x 2515` ROI through 8 um
+    pseudobulk; default Colab safe-mode SPIX uses a central `500000 x 2515`
+    native 2 um subset
+  - SPIX follows the VisiumHD P2 manuscript/reproduction path on a central
+    `500000 x 2515` native 2 um subset in default Colab safe mode:
+    30-dimensional PCA/log-normalized embedding, graph smoothing before equalization,
     automatic equalization, `image_plot_slic` segmentation, and multiscale
     Moran/SVG
-  - automatic smoothing recommendation: `graph_k=3`, `graph_t=30`
-  - automatic equalization recommendation: `BalanceSimplest`, `sleft=2.0`,
-    `sright=4.0`
+  - automatic smoothing recommendation: `graph_k=15`, `graph_t=10`
+  - automatic equalization recommendation: `BalanceSimplest`, `sleft=0.5`,
+    `sright=0.5`
   - SPIX segment counts:
-    `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
-    `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
-    `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21
-  - slowest local stages in the bundled-label validation:
-    SPIX multiscale segmentation 79.01 sec, smoothing sweep 66.18 sec,
-    8 um preprocessing 41.46 sec, SPIX multiscale Moran/SVG 31.81 sec,
-    equalization sweep 27.48 sec. BayesSpace label loading took 0.01 sec.
+    `r2` 500000, `r8` 33257, `r16` 8283, `r30` 2343, `r40` 1185,
+    `r50` 777, `r80` 303, `r100` 197, `r150` 89, `r200` 49,
+    `r250` 28, `r300` 21, `r350` 18, `r400` 12, `r450` 12,
+    `r500` 5
+  - slowest local stages in Colab safe mode:
+    8 um preprocessing 41.85 sec, SPIX multiscale segmentation 37.68 sec,
+    equalization sweep 28.62 sec, import analysis packages 20.39 sec,
+    smoothing sweep 19.48 sec, SPIX multiscale Moran/SVG 11.37 sec.
+    BayesSpace label loading took 0.01 sec.
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

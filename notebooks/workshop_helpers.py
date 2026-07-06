@@ -50,6 +50,42 @@ def runtime_snapshot(n_jobs: int) -> dict:
     }
 
 
+def memory_snapshot() -> dict:
+    """Return a small process/system memory snapshot without extra packages."""
+    snapshot = {}
+
+    status_path = Path("/proc/self/status")
+    if status_path.exists():
+        for line in status_path.read_text().splitlines():
+            key, value = line.split(":", 1)
+            if key in {"VmRSS", "VmHWM", "VmSize"}:
+                snapshot[key] = round(float(value.strip().split()[0]) / 1024 / 1024, 2)
+
+    meminfo_path = Path("/proc/meminfo")
+    if meminfo_path.exists():
+        for line in meminfo_path.read_text().splitlines():
+            key, value = line.split(":", 1)
+            if key in {"MemTotal", "MemAvailable", "SwapTotal", "SwapFree"}:
+                snapshot[key] = round(float(value.strip().split()[0]) / 1024 / 1024, 2)
+
+    return snapshot
+
+
+def print_memory(label: str) -> dict:
+    """Print a compact memory line and return the snapshot."""
+    snapshot = memory_snapshot()
+    rss = snapshot.get("VmRSS", "NA")
+    hwm = snapshot.get("VmHWM", "NA")
+    available = snapshot.get("MemAvailable", "NA")
+    total = snapshot.get("MemTotal", "NA")
+    print(
+        f"[memory] {label}: process_rss_gb={rss} "
+        f"process_peak_gb={hwm} mem_available_gb={available}/{total}",
+        flush=True,
+    )
+    return snapshot
+
+
 @contextmanager
 def timed_stage(stage: str, stage_times: list[dict]):
     """Time one notebook stage and append a compact record."""

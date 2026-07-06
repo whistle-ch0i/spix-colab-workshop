@@ -110,6 +110,7 @@ def setup_cells(
     import sys
     import json
     import time
+    import gc
     import warnings
     import subprocess
     import urllib.request
@@ -150,6 +151,8 @@ def setup_cells(
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     IN_COLAB = "google.colab" in sys.modules or "COLAB_RELEASE_TAG" in os.environ
+    COLAB_SAFE_MODE = os.environ.get("SPIX_WORKSHOP_COLAB_SAFE_MODE", "1" if IN_COLAB else "0")
+    COLAB_SAFE_MODE = COLAB_SAFE_MODE.lower() in {"1", "true", "yes"}
     warnings.filterwarnings("ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
 
@@ -195,6 +198,8 @@ def setup_cells(
         domain_count_table as make_domain_count_table,
         file_sha256,
         locate_or_download,
+        memory_snapshot,
+        print_memory,
         pseudobulk_visiumhd_2um_to_8um,
         runtime_snapshot,
         sample_indices,
@@ -208,6 +213,8 @@ def setup_cells(
     runtime_info = runtime_snapshot(N_JOBS)
 
     print(json.dumps(runtime_info, indent=2, ensure_ascii=False))
+    print("Colab safe mode:", COLAB_SAFE_MODE)
+    print_memory("after setup cell")
     """
     setup_code = (
         setup_code.replace("__DATA_FILE__", json.dumps(DATA_FILE))
@@ -359,6 +366,7 @@ def data_cells() -> list:
                 }])
 
             display(data_summary)
+            print_memory("after loading 2um data")
             """
         ),
         md(
@@ -478,6 +486,7 @@ def eight_um_cells() -> list:
             print(f"2 um: {adata_2um.n_obs:,} bins x {adata_2um.n_vars:,} genes")
             print(f"8 um: {adata_8um.n_obs:,} bins x {adata_8um.n_vars:,} genes")
             display(pseudobulk_summary)
+            print_memory("after 8um pseudobulk")
             """
         ),
         md(
@@ -1331,6 +1340,50 @@ def cci_cells() -> list:
             display(heatmap_table)
             """
         ),
+        md(
+            """
+            ## 6-4. SPIX 전에 메모리 정리
+
+            다음 파트는 2 um bin을 직접 다루기 때문에 메모리를 많이 씁니다. 앞에서
+            만든 8 um 분석 객체와 domain/CCI 중간 객체는 여기서 정리합니다. 표와
+            그림을 만드는 데 필요한 결과 파일과 요약값은 이미 저장되어 있습니다.
+            """
+        ),
+        code(
+            """
+            with timed_stage("cleanup_before_spix", STAGE_TIMES):
+                DATA_SHAPE_8UM = [int(adata_8um.n_obs), int(adata_8um.n_vars)]
+                DOMAIN_PANEL_SHAPE = [int(domain_adata.n_obs), int(domain_adata.n_vars)]
+                SPATIAL_DOMAIN_METHODS = list(domain_methods.values())
+
+                cleanup_names = [
+                    "analysis_adata",
+                    "adata_8um",
+                    "domain_adata",
+                    "domain_coords",
+                    "domain_hvg_table",
+                    "banksy_adata",
+                    "banksy_results",
+                    "spagcn_adata",
+                    "spagcn_adj",
+                    "ligrec_result",
+                    "ligrec_table",
+                    "ligrec_display",
+                    "heatmap_table",
+                    "nhood_zscore",
+                    "nhood_count",
+                    "nhood_zscore_df",
+                    "nhood_count_df",
+                ]
+                for name in cleanup_names:
+                    if name in globals():
+                        del globals()[name]
+                plt.close("all")
+                gc.collect()
+
+            print_memory("after standard sections cleanup")
+            """
+        ),
     ]
 
 
@@ -1340,8 +1393,8 @@ def spix_cells() -> list:
             """
             ## 7. SPIX
 
-            마지막은 2 um ROI 전체를 그대로 사용합니다. 앞의 표준 도구들은 안정성을
-            위해 8 um pseudobulk에서 돌렸지만, SPIX 파트는 2 um 정보를 버리지 않고
+            마지막은 2 um ROI를 사용합니다. 앞의 표준 도구들은 안정성을 위해
+            8 um pseudobulk에서 돌렸지만, SPIX 파트는 2 um 정보를 버리지 않고
             여러 scale의 tissue unit으로 바꾸는 흐름을 보여줍니다.
 
             순서는 P2 재현 코드와 맞춰 `embedding -> smoothing -> equalization ->
@@ -1350,7 +1403,12 @@ def spix_cells() -> list:
 
             앞에서 8 um로 낮춘 이유는 표준 도구들이 안정적으로 돌아가게 하기 위한
             선택이었습니다. SPIX는 반대로 native 2 um 정보를 보존한 채 여러 scale의
-            tissue unit을 만들기 때문에, 여기서는 1M개의 2 um bin 전체를 사용합니다.
+            tissue unit을 만듭니다.
+
+            Colab free-tier에서는 런타임이 메모리 부족으로 조용히 종료될 수 있어,
+            기본 safe mode에서 SPIX 입력을 중앙 500k 2 um bin으로 제한합니다. 1M
+            전체 reference run을 확인하려면 첫 cell에서
+            `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=1000000`으로 바꾸면 됩니다.
             """
         ),
         code(
@@ -1367,6 +1425,11 @@ def spix_cells() -> list:
             ]
             PITCH_UM = 2.0
             SPIX_MAX_WORKERS = int(os.environ.get("SPIX_WORKSHOP_SPIX_MAX_WORKERS", str(N_JOBS)))
+            DEFAULT_SPIX_MAX_2UM_BINS = 500_000 if COLAB_SAFE_MODE else adata_2um.n_obs
+            SPIX_MAX_2UM_BINS = int(os.environ.get(
+                "SPIX_WORKSHOP_SPIX_MAX_2UM_BINS",
+                str(DEFAULT_SPIX_MAX_2UM_BINS),
+            ))
 
             SEGMENT_DIR = OUTPUT_DIR / "spix_multiscale_segments"
             SPIX_CACHE_DIR = OUTPUT_DIR / "image_cache"
@@ -1374,7 +1437,9 @@ def spix_cells() -> list:
 
             print("embedding dims:", SPIX_EMBEDDING_DIMS)
             print("automatic smoothing/equalization sweep:", SPIX_RUN_TUNING)
+            print("SPIX max 2um bins:", SPIX_MAX_2UM_BINS)
             print("scales:", RESOLUTIONS_UM)
+            print_memory("before SPIX")
             """
         ),
         md(
@@ -1382,13 +1447,28 @@ def spix_cells() -> list:
             ## 7-1. Embedding
 
             Count matrix를 log-normalized PCA embedding으로 바꿉니다. 여기서부터는
-            2 um `adata_2um`을 복사해 `spix_adata`로 진행합니다.
+            2 um `adata_2um`에서 SPIX 입력을 만든 뒤 `spix_adata`로 진행합니다.
             """
         ),
         code(
             """
             with timed_stage("spix_generate_embeddings", STAGE_TIMES):
-                spix_adata = adata_2um.copy()
+                if SPIX_MAX_2UM_BINS < adata_2um.n_obs:
+                    spix_idx = center_nonzero_panel(
+                        coords_2um,
+                        total_counts_2um,
+                        max_obs=SPIX_MAX_2UM_BINS,
+                    )
+                    spix_adata = adata_2um[spix_idx].copy()
+                    spix_input_mode = f"central {len(spix_idx):,} 2um bins"
+                else:
+                    spix_adata = adata_2um.copy()
+                    spix_input_mode = "full 2um ROI"
+
+                gc.collect()
+                print("SPIX input:", spix_input_mode)
+                print_memory("after SPIX input copy")
+
                 spix_adata = SPIX.tm.generate_embeddings(
                     spix_adata,
                     dim_reduction="PCA",
@@ -1404,6 +1484,7 @@ def spix_cells() -> list:
                 )
 
             print("X_embedding:", spix_adata.obsm["X_embedding"].shape)
+            print_memory("after SPIX embedding")
             """
         ),
         md(
@@ -1472,6 +1553,7 @@ def spix_cells() -> list:
                 )
 
             print("X_embedding_smooth:", spix_adata.obsm["X_embedding_smooth"].shape)
+            print_memory("after SPIX smoothing")
             """
         ),
         md(
@@ -1539,6 +1621,7 @@ def spix_cells() -> list:
                 )
 
             print("image cache key: image_plot_slic")
+            print_memory("after SPIX image cache")
             """
         ),
         md(
@@ -1583,6 +1666,7 @@ def spix_cells() -> list:
                 "observed_obs_n_segments",
                 "seconds",
             ]])
+            print_memory("after SPIX segmentation")
             """
         ),
         md(
@@ -1612,6 +1696,7 @@ def spix_cells() -> list:
                 spix_top_svg_table = top_rank_table(spix_rank_df, top_n=5)
 
             display(spix_top_svg_table)
+            print_memory("after SPIX multiscale SVG")
             """
         ),
         md(
@@ -1701,13 +1786,17 @@ def final_cells() -> list:
                     "validation_passed": True,
                     "elapsed_seconds": elapsed,
                     "runtime": runtime_info,
+                    "colab_safe_mode": bool(COLAB_SAFE_MODE),
                     "data_file": str(data_path),
                     "roi_context_file": str(roi_context_path),
                     "data_shape_2um": [int(adata_2um.n_obs), int(adata_2um.n_vars)],
-                    "data_shape_8um": [int(adata_8um.n_obs), int(adata_8um.n_vars)],
-                    "spatial_domain_panel_shape": [int(domain_adata.n_obs), int(domain_adata.n_vars)],
-                    "spatial_domain_methods": list(domain_methods.values()),
+                    "data_shape_8um": DATA_SHAPE_8UM,
+                    "spatial_domain_panel_shape": DOMAIN_PANEL_SHAPE,
+                    "spatial_domain_methods": SPATIAL_DOMAIN_METHODS,
                     "spix_shape": [int(spix_adata.n_obs), int(spix_adata.n_vars)],
+                    "spix_input_mode": spix_input_mode,
+                    "spix_max_2um_bins": int(SPIX_MAX_2UM_BINS),
+                    "memory_final": memory_snapshot(),
                     "stage_times": STAGE_TIMES,
                     "outputs": {
                         "output_dir": str(OUTPUT_DIR),

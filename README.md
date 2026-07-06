@@ -59,8 +59,9 @@ live exercise.
 The notebook builds a `62898 x 2515` 8 um pseudobulk object from this ROI for
 SVG, spatial domain, and CCI sections. The spatial domain comparison uses a
 central 3,500-bin 8 um panel so BANKSY, BayesSpace, and SpaGCN stay comfortable
-on a free CPU runtime. The final SPIX section uses the full 1,000,000-bin 2 um
-ROI.
+on a free CPU runtime. In Colab safe mode, the final SPIX section uses a
+central 500,000-bin native 2 um subset to avoid silent free-tier runtime exits.
+Set `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS=1000000` for the 1M reference run.
 
 The ROI overview plot uses:
 
@@ -187,6 +188,9 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
 
 - Use CPU runtime: `Runtime > Change runtime type > Hardware accelerator: None`.
 - The notebook defaults to `N_JOBS=2`.
+- Colab safe mode is on by default in Colab. It keeps SVG/domain/CCI on the
+  1M ROI-derived 8 um pseudobulk, then runs SPIX on a central 500k native
+  2 um subset after clearing standard-analysis objects from memory.
 - Python packages are pinned in `requirements-colab.txt`. `zarr==2.18.3` is
   fixed deliberately so the SPIX image-cache step does not receive zarr v3 in a
   fresh Colab runtime.
@@ -201,6 +205,6 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
 - The default SPIX section runs smoothing/equalization sweeps. For a shortened
   rehearsal, set `SPIX_WORKSHOP_SPIX_RUN_TUNING=0`.
 - Keep participant edits focused on `SPIX_WORKSHOP_N_JOBS`,
-  `SPIX_WORKSHOP_DOMAIN_MAX_OBS`, `SPIX_WORKSHOP_SPIX_RUN_TUNING`, and selected
-  plotting genes.
+  `SPIX_WORKSHOP_DOMAIN_MAX_OBS`, `SPIX_WORKSHOP_SPIX_MAX_2UM_BINS`,
+  `SPIX_WORKSHOP_SPIX_RUN_TUNING`, and selected plotting genes.
 - If Colab is slow or disconnects, restart the runtime and run cells from the top.
