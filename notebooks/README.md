@@ -20,6 +20,10 @@ Colab에서 패키지 설치와 SPIX optional import 보정은 `colab_bootstrap.
 담당합니다. Python 패키지 버전은 repo root의 `requirements-colab.txt`에 고정해
 두었습니다.
 
+BayesSpace는 R 패키지가 이미 준비되어 있으면 live로 실행합니다. Colab에서 R
+패키지가 없으면 설치에 오래 걸릴 수 있으므로, 기본 실습은 고정 ROI/panel에서
+미리 계산한 BayesSpace label을 읽어옵니다.
+
 기본 데이터는 VisiumHD P2의 native 2 um 1M-bin ROI입니다. 일반 분석은
 이 ROI를 8 um pseudobulk로 만든 뒤 진행합니다.
 

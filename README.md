@@ -172,6 +172,8 @@ The notebook expects these raw URLs:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
+
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
@@ -188,6 +190,11 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
 - Python packages are pinned in `requirements-colab.txt`. `zarr==2.18.3` is
   fixed deliberately so the SPIX image-cache step does not receive zarr v3 in a
   fresh Colab runtime.
+- The notebook does not install R/Bioconductor BayesSpace by default in Colab.
+  If BayesSpace is already available, it runs live. Otherwise it uses the
+  bundled BayesSpace labels for the fixed 3,500-bin domain panel. Set
+  `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` only for a rehearsal where a long R
+  install is acceptable.
 - Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
   for workshop participants. The first notebook cell records `cpu_count`,
   memory, and disk space for the actual runtime.

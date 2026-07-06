@@ -20,6 +20,10 @@ ROI context URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 
+Bundled BayesSpace label URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
+
 Requirements URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
@@ -89,6 +93,8 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
 - Code cells: 36/36 passed.
 - Local elapsed time after dependencies and data were present: 358.72 seconds.
+- Local elapsed time with bundled BayesSpace labels forced:
+  320.85 seconds.
 - Setup files included in the repo:
   `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
   `notebooks/workshop_helpers.py`.
@@ -100,7 +106,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
   BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN.
-- BayesSpace input is checked for zero-count bins before calling R.
+- BayesSpace uses live R BayesSpace only when the R package is already
+  available or `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` is set. The default Colab
+  fallback uses bundled BayesSpace labels for the fixed 3,500-bin domain panel.
 - CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
   20 permutations.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
@@ -112,9 +120,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
   `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
   `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21.
-- Slowest local stages: SPIX multiscale segmentation 81.39 sec, smoothing
-  sweep 66.40 sec, 8 um preprocessing 41.95 sec, SPIX multiscale Moran/SVG
-  37.74 sec, equalization sweep 27.62 sec, BayesSpace 22.49 sec.
+- Slowest local stages in the bundled-label validation: SPIX multiscale
+  segmentation 79.01 sec, smoothing sweep 66.18 sec, 8 um preprocessing
+  41.46 sec, SPIX multiscale Moran/SVG 31.81 sec, equalization sweep
+  27.48 sec. BayesSpace label loading took 0.01 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.

@@ -17,6 +17,7 @@ except Exception:  # pragma: no cover
 
 DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 ROI_CONTEXT_FILE = "visiumhd_p2_roi_context_1000000_downsample.csv"
+BAYESSPACE_LABELS_FILE = "bayesspace_labels_1m_panel3500.csv"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -24,6 +25,10 @@ DEFAULT_DATA_URL = (
 DEFAULT_ROI_CONTEXT_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{ROI_CONTEXT_FILE}"
+)
+DEFAULT_BAYESSPACE_LABELS_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"data/{BAYESSPACE_LABELS_FILE}"
 )
 HELPER_FILE = "workshop_helpers.py"
 DEFAULT_HELPER_URL = (
@@ -93,6 +98,8 @@ def setup_cells(
     data_sha256: str,
     roi_context_url: str,
     roi_context_sha256: str,
+    bayesspace_labels_url: str,
+    bayesspace_labels_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -128,6 +135,9 @@ def setup_cells(
     ROI_CONTEXT_FILE = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_FILE", __ROI_CONTEXT_FILE__)
     ROI_CONTEXT_URL = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_URL", __ROI_CONTEXT_URL__)
     ROI_CONTEXT_SHA256 = os.environ.get("SPIX_WORKSHOP_ROI_CONTEXT_SHA256", __ROI_CONTEXT_SHA256__)
+    BAYESSPACE_LABELS_FILE = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_FILE", __BAYESSPACE_LABELS_FILE__)
+    BAYESSPACE_LABELS_URL = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_URL", __BAYESSPACE_LABELS_URL__)
+    BAYESSPACE_LABELS_SHA256 = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_SHA256", __BAYESSPACE_LABELS_SHA256__)
     REQUIREMENTS_FILE = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_FILE", __REQUIREMENTS_FILE__)
     REQUIREMENTS_URL = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_URL", __REQUIREMENTS_URL__)
     BOOTSTRAP_FILE = os.environ.get("SPIX_WORKSHOP_BOOTSTRAP_FILE", __BOOTSTRAP_FILE__)
@@ -206,6 +216,9 @@ def setup_cells(
         .replace("__ROI_CONTEXT_FILE__", json.dumps(ROI_CONTEXT_FILE))
         .replace("__ROI_CONTEXT_URL__", json.dumps(roi_context_url))
         .replace("__ROI_CONTEXT_SHA256__", json.dumps(roi_context_sha256))
+        .replace("__BAYESSPACE_LABELS_FILE__", json.dumps(BAYESSPACE_LABELS_FILE))
+        .replace("__BAYESSPACE_LABELS_URL__", json.dumps(bayesspace_labels_url))
+        .replace("__BAYESSPACE_LABELS_SHA256__", json.dumps(bayesspace_labels_sha256))
         .replace("__REQUIREMENTS_FILE__", json.dumps(REQUIREMENTS_FILE))
         .replace("__REQUIREMENTS_URL__", json.dumps(requirements_url))
         .replace("__BOOTSTRAP_FILE__", json.dumps(BOOTSTRAP_FILE))
@@ -248,10 +261,9 @@ def setup_cells(
             with timed_stage("import_or_install", STAGE_TIMES):
                 ensure_python_requirements(requirements_path, in_colab=IN_COLAB)
                 ensure_spix(SPIX_INSTALL_URL, in_colab=IN_COLAB)
-                ensure_bayesspace(in_colab=IN_COLAB)
-                R_BAYESSPACE_READY = True
+                R_BAYESSPACE_READY = ensure_bayesspace(in_colab=IN_COLAB)
 
-            print("BayesSpace R package: ready")
+            print("BayesSpace R package:", "ready" if R_BAYESSPACE_READY else "using bundled labels")
             print(json.dumps(package_versions([
                 "scanpy",
                 "squidpy",
@@ -869,6 +881,12 @@ def domain_cells() -> list:
             실습에서는 시간을 줄이기 위해 MCMC 반복 수를 작게 둡니다. 논문용 분석에서
             BayesSpace를 정식으로 쓴다면 `q` 선택과 반복 수를 별도로 점검해야 합니다.
 
+            다만 Colab에서 R/Bioconductor 패키지를 현장에서 새로 설치하면 시간이 크게
+            흔들릴 수 있습니다. R BayesSpace가 이미 준비되어 있으면 여기서 직접
+            실행하고, 준비되어 있지 않으면 같은 ROI와 같은 panel에서 미리 계산해 둔
+            BayesSpace label을 읽어옵니다. live R 실행을 강제로 하고 싶으면 첫 cell에서
+            `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1`을 설정하면 됩니다.
+
             BayesSpace는 입력 spot/bin의 count가 모두 있어야 안정적으로 동작합니다.
             그래서 HVG subset에서 zero-count bin이 생기면 전체 workshop gene set으로
             되돌린 뒤 실행합니다. 이 처리는 오류를 숨기기 위한 것이 아니라, 같은
@@ -891,116 +909,134 @@ def domain_cells() -> list:
 
                 bayesspace_dir = OUTPUT_DIR / "bayesspace"
                 bayesspace_dir.mkdir(parents=True, exist_ok=True)
+                bayesspace_source = "live R BayesSpace"
 
-                if BAYESSPACE_N_GENES >= domain_adata.n_vars:
-                    bayesspace_genes = domain_adata.var_names.tolist()
-                else:
-                    bayesspace_genes = domain_hvg_table.head(
-                        min(BAYESSPACE_N_GENES, len(domain_hvg_table))
-                    ).index.tolist()
-                bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
-                bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
-                if np.any(bayesspace_spot_counts <= 0):
-                    print("BayesSpace subset에 zero-count bin이 있어 전체 gene set으로 다시 준비합니다.")
-                    bayesspace_genes = domain_adata.var_names.tolist()
+                if R_BAYESSPACE_READY:
+                    if BAYESSPACE_N_GENES >= domain_adata.n_vars:
+                        bayesspace_genes = domain_adata.var_names.tolist()
+                    else:
+                        bayesspace_genes = domain_hvg_table.head(
+                            min(BAYESSPACE_N_GENES, len(domain_hvg_table))
+                        ).index.tolist()
                     bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
                     bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
-                assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
-                counts_for_r = bayesspace_raw.X.T
-                if sp.issparse(counts_for_r):
-                    counts_for_r = counts_for_r.tocsc()
+                    if np.any(bayesspace_spot_counts <= 0):
+                        print("BayesSpace subset에 zero-count bin이 있어 전체 gene set으로 다시 준비합니다.")
+                        bayesspace_genes = domain_adata.var_names.tolist()
+                        bayesspace_raw = adata_8um[domain_idx, bayesspace_genes].copy()
+                        bayesspace_spot_counts = np.asarray(bayesspace_raw.X.sum(axis=1)).ravel()
+                    assert np.all(bayesspace_spot_counts > 0), "BayesSpace 입력에 zero-count bin이 있습니다."
+                    counts_for_r = bayesspace_raw.X.T
+                    if sp.issparse(counts_for_r):
+                        counts_for_r = counts_for_r.tocsc()
+                    else:
+                        counts_for_r = sp.csc_matrix(counts_for_r)
+
+                    sio.mmwrite(bayesspace_dir / "counts.mtx", counts_for_r)
+                    pd.DataFrame({"gene": bayesspace_genes}).to_csv(
+                        bayesspace_dir / "genes.csv",
+                        index=False,
+                    )
+                    pd.DataFrame({
+                        "barcode": bayesspace_raw.obs_names,
+                        "array_row": bayesspace_raw.obs["array_row"].to_numpy(dtype=int),
+                        "array_col": bayesspace_raw.obs["array_col"].to_numpy(dtype=int),
+                    }).to_csv(bayesspace_dir / "spots.csv", index=False)
+
+                    bayesspace_script = bayesspace_dir / "run_bayesspace.R"
+                    bayesspace_script.write_text(
+                        '''
+                        suppressPackageStartupMessages({
+                          library(Matrix)
+                          library(SingleCellExperiment)
+                          library(BayesSpace)
+                        })
+                        args <- commandArgs(trailingOnly=TRUE)
+                        input_dir <- args[[1]]
+                        q <- as.integer(args[[2]])
+                        d <- as.integer(args[[3]])
+                        nrep <- as.integer(args[[4]])
+                        burnin <- as.integer(args[[5]])
+
+                        counts <- readMM(file.path(input_dir, "counts.mtx"))
+                        genes <- read.csv(file.path(input_dir, "genes.csv"), stringsAsFactors=FALSE)$gene
+                        spots <- read.csv(file.path(input_dir, "spots.csv"), stringsAsFactors=FALSE)
+
+                        rownames(counts) <- make.unique(genes)
+                        colnames(counts) <- spots$barcode
+                        sce <- SingleCellExperiment(assays=list(counts=as(counts, "CsparseMatrix")))
+                        colData(sce)$array_row <- as.integer(spots$array_row)
+                        colData(sce)$array_col <- as.integer(spots$array_col)
+
+                        set.seed(7)
+                        sce <- spatialPreprocess(
+                          sce,
+                          platform="VisiumHD",
+                          n.PCs=d,
+                          n.HVGs=min(2000, nrow(sce)),
+                          log.normalize=TRUE
+                        )
+                        set.seed(7)
+                        sce <- spatialCluster(
+                          sce,
+                          q=q,
+                          platform="VisiumHD",
+                          d=d,
+                          init.method="kmeans",
+                          model="t",
+                          gamma=2,
+                          nrep=nrep,
+                          burn.in=burnin,
+                          save.chain=FALSE
+                        )
+                        out <- data.frame(
+                          barcode=colnames(sce),
+                          bayesspace_domain=as.character(colData(sce)$spatial.cluster)
+                        )
+                        write.csv(out, file.path(input_dir, "bayesspace_labels.csv"), row.names=FALSE)
+                        '''
+                    )
+
+                    bayesspace_run = subprocess.run(
+                        [
+                            "Rscript",
+                            str(bayesspace_script),
+                            str(bayesspace_dir),
+                            str(BAYESSPACE_Q),
+                            str(BAYESSPACE_D),
+                            str(BAYESSPACE_NREP),
+                            str(BAYESSPACE_BURNIN),
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                    bayesspace_log = (bayesspace_run.stdout + "\\n" + bayesspace_run.stderr).splitlines()
+                    print("\\n".join(bayesspace_log[-8:]))
+                    assert bayesspace_run.returncode == 0, "BayesSpace 실행이 실패했습니다."
+
+                    bayesspace_labels = pd.read_csv(
+                        bayesspace_dir / "bayesspace_labels.csv"
+                    ).set_index("barcode")
                 else:
-                    counts_for_r = sp.csc_matrix(counts_for_r)
-
-                sio.mmwrite(bayesspace_dir / "counts.mtx", counts_for_r)
-                pd.DataFrame({"gene": bayesspace_genes}).to_csv(
-                    bayesspace_dir / "genes.csv",
-                    index=False,
-                )
-                pd.DataFrame({
-                    "barcode": bayesspace_raw.obs_names,
-                    "array_row": bayesspace_raw.obs["array_row"].to_numpy(dtype=int),
-                    "array_col": bayesspace_raw.obs["array_col"].to_numpy(dtype=int),
-                }).to_csv(bayesspace_dir / "spots.csv", index=False)
-
-                bayesspace_script = bayesspace_dir / "run_bayesspace.R"
-                bayesspace_script.write_text(
-                    '''
-                    suppressPackageStartupMessages({
-                      library(Matrix)
-                      library(SingleCellExperiment)
-                      library(BayesSpace)
-                    })
-                    args <- commandArgs(trailingOnly=TRUE)
-                    input_dir <- args[[1]]
-                    q <- as.integer(args[[2]])
-                    d <- as.integer(args[[3]])
-                    nrep <- as.integer(args[[4]])
-                    burnin <- as.integer(args[[5]])
-
-                    counts <- readMM(file.path(input_dir, "counts.mtx"))
-                    genes <- read.csv(file.path(input_dir, "genes.csv"), stringsAsFactors=FALSE)$gene
-                    spots <- read.csv(file.path(input_dir, "spots.csv"), stringsAsFactors=FALSE)
-
-                    rownames(counts) <- make.unique(genes)
-                    colnames(counts) <- spots$barcode
-                    sce <- SingleCellExperiment(assays=list(counts=as(counts, "CsparseMatrix")))
-                    colData(sce)$array_row <- as.integer(spots$array_row)
-                    colData(sce)$array_col <- as.integer(spots$array_col)
-
-                    set.seed(7)
-                    sce <- spatialPreprocess(
-                      sce,
-                      platform="VisiumHD",
-                      n.PCs=d,
-                      n.HVGs=min(2000, nrow(sce)),
-                      log.normalize=TRUE
+                    bayesspace_source = "bundled BayesSpace labels"
+                    bayesspace_labels_path = locate_or_download(
+                        BAYESSPACE_LABELS_FILE,
+                        BAYESSPACE_LABELS_URL,
+                        sha256=BAYESSPACE_LABELS_SHA256,
                     )
-                    set.seed(7)
-                    sce <- spatialCluster(
-                      sce,
-                      q=q,
-                      platform="VisiumHD",
-                      d=d,
-                      init.method="kmeans",
-                      model="t",
-                      gamma=2,
-                      nrep=nrep,
-                      burn.in=burnin,
-                      save.chain=FALSE
+                    bayesspace_labels = pd.read_csv(bayesspace_labels_path).set_index("barcode")
+                    bayesspace_labels.loc[domain_adata.obs_names].reset_index().to_csv(
+                        bayesspace_dir / "bayesspace_labels.csv",
+                        index=False,
                     )
-                    out <- data.frame(
-                      barcode=colnames(sce),
-                      bayesspace_domain=as.character(colData(sce)$spatial.cluster)
-                    )
-                    write.csv(out, file.path(input_dir, "bayesspace_labels.csv"), row.names=FALSE)
-                    '''
-                )
 
-                bayesspace_run = subprocess.run(
-                    [
-                        "Rscript",
-                        str(bayesspace_script),
-                        str(bayesspace_dir),
-                        str(BAYESSPACE_Q),
-                        str(BAYESSPACE_D),
-                        str(BAYESSPACE_NREP),
-                        str(BAYESSPACE_BURNIN),
-                    ],
-                    capture_output=True,
-                    text=True,
-                )
-                bayesspace_log = (bayesspace_run.stdout + "\\n" + bayesspace_run.stderr).splitlines()
-                print("\\n".join(bayesspace_log[-8:]))
-                assert bayesspace_run.returncode == 0, "BayesSpace 실행이 실패했습니다."
-
-                bayesspace_labels = pd.read_csv(
-                    bayesspace_dir / "bayesspace_labels.csv"
-                ).set_index("barcode")
+                missing_bayesspace = domain_adata.obs_names.difference(bayesspace_labels.index)
+                assert len(missing_bayesspace) == 0, "BayesSpace label과 현재 domain panel이 맞지 않습니다."
                 domain_adata.obs["bayesspace_domain"] = pd.Categorical(
                     bayesspace_labels.loc[domain_adata.obs_names, "bayesspace_domain"].astype(str).to_numpy()
                 )
 
+            print("source:", bayesspace_source)
             print("q:", BAYESSPACE_Q)
             print("clusters:", domain_adata.obs["bayesspace_domain"].nunique())
             """
@@ -1709,6 +1745,8 @@ def combined_notebook(
     data_sha256: str,
     roi_context_url: str,
     roi_context_sha256: str,
+    bayesspace_labels_url: str,
+    bayesspace_labels_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -1758,6 +1796,8 @@ def combined_notebook(
             data_sha256,
             roi_context_url,
             roi_context_sha256,
+            bayesspace_labels_url,
+            bayesspace_labels_sha256,
             requirements_url,
             bootstrap_url,
             helper_url,
@@ -1789,6 +1829,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-url", default=DEFAULT_DATA_URL)
     parser.add_argument("--roi-context-file", default=f"data/{ROI_CONTEXT_FILE}")
     parser.add_argument("--roi-context-url", default=DEFAULT_ROI_CONTEXT_URL)
+    parser.add_argument("--bayesspace-labels-file", default=f"data/{BAYESSPACE_LABELS_FILE}")
+    parser.add_argument("--bayesspace-labels-url", default=DEFAULT_BAYESSPACE_LABELS_URL)
     parser.add_argument("--requirements-url", default=DEFAULT_REQUIREMENTS_URL)
     parser.add_argument("--bootstrap-url", default=DEFAULT_BOOTSTRAP_URL)
     parser.add_argument("--helper-url", default=DEFAULT_HELPER_URL)
@@ -1802,6 +1844,10 @@ def main() -> None:
     data_sha256 = sha256sum(data_path) if data_path.exists() else ""
     roi_context_path = Path(args.roi_context_file)
     roi_context_sha256 = sha256sum(roi_context_path) if roi_context_path.exists() else ""
+    bayesspace_labels_path = Path(args.bayesspace_labels_file)
+    bayesspace_labels_sha256 = (
+        sha256sum(bayesspace_labels_path) if bayesspace_labels_path.exists() else ""
+    )
     notebook_dir = Path(args.notebook_dir)
 
     name, nb = combined_notebook(
@@ -1809,6 +1855,8 @@ def main() -> None:
         data_sha256,
         args.roi_context_url,
         roi_context_sha256,
+        args.bayesspace_labels_url,
+        bayesspace_labels_sha256,
         args.requirements_url,
         args.bootstrap_url,
         args.helper_url,
@@ -1822,6 +1870,7 @@ def main() -> None:
                 "written": [str(notebook_dir / name)],
                 "data_sha256": data_sha256,
                 "roi_context_sha256": roi_context_sha256,
+                "bayesspace_labels_sha256": bayesspace_labels_sha256,
             },
             indent=2,
         )

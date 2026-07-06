@@ -40,6 +40,8 @@ Local fallback executor result, 2026-07-06:
 
 - Code cells: 36/36 passed.
 - Total elapsed: 358.72 seconds after local dependencies and data were present.
+- Total elapsed with bundled BayesSpace labels forced:
+  320.85 seconds after local dependencies and data were present.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use. Repeated file/checksum/timing/plotting chores live in
   `notebooks/workshop_helpers.py`. Colab setup chores live in
@@ -66,19 +68,21 @@ Local fallback executor result, 2026-07-06:
   - expression-only Leiden baseline,
   - Squidpy spatial graph clustering,
   - BANKSY through `pyBANKSY`, using 800 HVGs,
-  - BayesSpace through the R package, using the 8 um count matrix and grid
-    coordinates,
+  - BayesSpace through live R BayesSpace when available, otherwise bundled
+    labels for the fixed 3,500-bin domain panel,
   - SpaGCN.
-  - BayesSpace input is checked for zero-count bins; if the selected subset is
-    unsafe, the notebook falls back to the full workshop gene set before
-    calling R BayesSpace.
-  - Pairwise ARI in the validation run:
-    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.501,
-    expression vs BayesSpace 0.633, expression vs SpaGCN 0.738,
-    Squidpy spatial graph vs BANKSY 0.123, Squidpy spatial graph vs
+  - BayesSpace live R input is checked for zero-count bins; if the selected
+    subset is unsafe, the notebook falls back to the full workshop gene set
+    before calling R BayesSpace.
+  - Bundled BayesSpace label file:
+    `data/bayesspace_labels_1m_panel3500.csv`
+  - Bundled-label validation ARI:
+    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.494,
+    expression vs BayesSpace 0.633, expression vs SpaGCN 0.722,
+    Squidpy spatial graph vs BANKSY 0.125, Squidpy spatial graph vs
     BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.073,
-    BANKSY vs BayesSpace 0.480, BANKSY vs SpaGCN 0.540,
-    BayesSpace vs SpaGCN 0.644.
+    BANKSY vs BayesSpace 0.473, BANKSY vs SpaGCN 0.525,
+    BayesSpace vs SpaGCN 0.658.
 - Cell-cell interaction:
   - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
@@ -114,12 +118,12 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 21
   - `r500`: 21
 - Slowest stages:
-  - SPIX multiscale segmentation: 81.39 seconds
-  - SPIX smoothing sweep: 66.40 seconds
-  - 8 um preprocessing with Scanpy/Squidpy: 41.95 seconds
-  - SPIX multiscale Moran/SVG: 37.74 seconds
-  - SPIX equalization sweep: 27.62 seconds
-  - BayesSpace spatial domain clustering: 22.49 seconds
+  - SPIX multiscale segmentation: 79.01 seconds
+  - SPIX smoothing sweep: 66.18 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 41.46 seconds
+  - SPIX multiscale Moran/SVG: 31.81 seconds
+  - SPIX equalization sweep: 27.48 seconds
+  - BayesSpace bundled label loading: 0.01 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

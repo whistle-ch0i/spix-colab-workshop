@@ -23,6 +23,9 @@ EXPECTED_SHA256 = {
     "data/visiumhd_p2_roi_context_1000000_downsample.csv": (
         "5b429739f7901cfa92b45afbaf7d6b4b191beafd547829d5f8fa5c7042e0e5a4"
     ),
+    "data/bayesspace_labels_1m_panel3500.csv": (
+        "927f13e098dd1558e88bb90074b02de52078918c010cc4db3c647b04c96c7a14"
+    ),
 }
 
 REQUIRED_FILES = [
@@ -40,6 +43,7 @@ REQUIRED_URLS = [
     f"{RAW_BASE}/requirements-colab.txt",
     f"{RAW_BASE}/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad",
     f"{RAW_BASE}/data/visiumhd_p2_roi_context_1000000_downsample.csv",
+    f"{RAW_BASE}/data/bayesspace_labels_1m_panel3500.csv",
 ]
 
 
@@ -72,7 +76,12 @@ def check_local_files(root: Path) -> list[str]:
     notebook = root / "notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb"
     if notebook.exists():
         text = notebook.read_text()
-        for token in ["requirements-colab.txt", "colab_bootstrap.py", "workshop_helpers.py"]:
+        for token in [
+            "requirements-colab.txt",
+            "colab_bootstrap.py",
+            "workshop_helpers.py",
+            "bayesspace_labels_1m_panel3500.csv",
+        ]:
             if token not in text:
                 errors.append(f"notebook does not reference {token}")
 

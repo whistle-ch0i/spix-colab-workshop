@@ -16,11 +16,13 @@ Official Colab FAQ checked on 2026-07-05:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad`
 5. Confirm the ROI context URL resolves:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
-6. Confirm the requirements/bootstrap/helper URLs resolve:
+6. Confirm the bundled BayesSpace label URL resolves:
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
+7. Confirm the requirements/bootstrap/helper URLs resolve:
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/workshop_helpers.py`
-7. Confirm the SPIX install URL in the notebook points to a branch containing
+8. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
 ## Free-Tier Condition
@@ -78,6 +80,7 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
   - local elapsed after dependencies and data were present: 358.72 seconds
+  - local elapsed with bundled BayesSpace labels forced: 320.85 seconds
   - code cells: 36/36 passed
   - setup files are included in the repo:
     `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
@@ -95,8 +98,9 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   - neighborhood enrichment: 50 permutations on BANKSY domains
   - Squidpy `ligrec`: 11 ligand-receptor candidates, 20 permutations,
     top examples include `MIF-CD74`, `CD74-MIF`, and `LGALS3-ITGB1`
-  - BayesSpace input has a zero-count check and falls back to the full
-    workshop gene set if an HVG subset would create empty bins
+  - BayesSpace runs live only if R BayesSpace is already available or
+    `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` is set. The default Colab fallback
+    uses bundled BayesSpace labels for the fixed domain panel.
   - SPIX section uses the full `1000000 x 2515` ROI
   - SPIX follows the VisiumHD P2 manuscript/reproduction path: 30-dimensional
     PCA/log-normalized embedding, graph smoothing before equalization,
@@ -109,10 +113,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `r2` 1000000, `r8` 55403, `r16` 16067, `r30` 4542, `r40` 2555,
     `r50` 1642, `r80` 647, `r100` 411, `r150` 178, `r200` 97,
     `r250` 61, `r300` 48, `r350` 36, `r400` 26, `r450` 21, `r500` 21
-  - slowest local stages: SPIX multiscale segmentation 81.39 sec,
-    smoothing sweep 66.40 sec, 8 um preprocessing 41.95 sec,
-    SPIX multiscale Moran/SVG 37.74 sec, equalization sweep 27.62 sec,
-    BayesSpace 22.49 sec
+  - slowest local stages in the bundled-label validation:
+    SPIX multiscale segmentation 79.01 sec, smoothing sweep 66.18 sec,
+    8 um preprocessing 41.46 sec, SPIX multiscale Moran/SVG 31.81 sec,
+    equalization sweep 27.48 sec. BayesSpace label loading took 0.01 sec.
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

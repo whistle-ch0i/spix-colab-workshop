@@ -1,9 +1,11 @@
-# Python packages used by the KOGO spatial transcriptomics Colab practical.
+# Direct Python package pins used by the KOGO spatial transcriptomics Colab practical.
 #
 # These versions match the local validation environment used for the 1M-bin
-# notebook preflight on 2026-07-06.  Keeping zarr on v2 is intentional: the
-# SPIX image-cache path writes compressed zarr arrays and should not receive
-# zarr v3 by accident in a fresh Colab runtime.
+# notebook preflight on 2026-07-06.  The notebook bootstrap does not run a
+# blanket `pip install --upgrade -r` during class; it installs only missing
+# direct workshop packages and keeps Colab's base scientific stack when usable.
+# Keeping zarr on v2 is intentional: the SPIX image-cache path writes compressed
+# zarr arrays and should not receive zarr v3 by accident in a fresh runtime.
 
 numpy==2.2.6
 scipy==1.15.3

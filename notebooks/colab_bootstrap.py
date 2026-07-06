@@ -13,8 +13,23 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
+
+
+DIRECT_PACKAGE_MODULES = {
+    "anndata": "anndata",
+    "scanpy": "scanpy",
+    "squidpy": "squidpy",
+    "zarr": "zarr",
+    "numcodecs": "numcodecs",
+    "tqdm-joblib": "tqdm_joblib",
+    "python-igraph": "igraph",
+    "leidenalg": "leidenalg",
+    "SpaGCN": "SpaGCN",
+    "pybanksy": "banksy",
+}
 
 
 def running_in_colab() -> bool:
@@ -48,8 +63,32 @@ def locate_or_download_repo_file(
     return target.resolve()
 
 
+def _read_requirement_pins(requirements_path: str | Path) -> dict[str, str]:
+    pins: dict[str, str] = {}
+    for raw_line in Path(requirements_path).read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "==" not in line:
+            continue
+        name, version = line.split("==", 1)
+        pins[name.strip()] = version.strip()
+    return pins
+
+
+def _run_command(command: list[str], label: str) -> None:
+    print(f"[setup] {label} ...", flush=True)
+    start = time.perf_counter()
+    subprocess.check_call(command)
+    print(f"[setup] {label} done in {time.perf_counter() - start:.1f} sec", flush=True)
+
+
 def ensure_python_requirements(requirements_path: str | Path, *, in_colab: bool | None = None) -> None:
-    """Install pinned Python packages in Colab; skip automatic installs locally."""
+    """Install only missing direct Python packages in Colab.
+
+    A full ``pip install --upgrade -r requirements-colab.txt`` is too slow for a
+    live workshop because it can reinstall Colab's base scientific stack.  This
+    function keeps the pins as the source of truth, but only installs packages
+    whose import module is missing, plus zarr v2 if Colab supplies zarr v3.
+    """
     if in_colab is None:
         in_colab = running_in_colab()
 
@@ -58,17 +97,61 @@ def ensure_python_requirements(requirements_path: str | Path, *, in_colab: bool 
         print("Local run: skipping pip install. Current environment will be used.")
         return
 
-    subprocess.check_call(
+    pins = _read_requirement_pins(requirements_path)
+    strict = os.environ.get("SPIX_WORKSHOP_STRICT_REQUIREMENTS", "0") == "1"
+    install_specs: list[str] = []
+
+    print("[setup] checking Python packages", flush=True)
+    for package_name, module_name in DIRECT_PACKAGE_MODULES.items():
+        pinned_version = pins.get(package_name)
+        spec = f"{package_name}=={pinned_version}" if pinned_version else package_name
+        module_spec = importlib.util.find_spec(module_name)
+
+        if module_spec is None:
+            install_specs.append(spec)
+            print(f"[setup] missing {module_name}; will install {spec}", flush=True)
+            continue
+
+        if package_name == "zarr":
+            observed = metadata.version("zarr")
+            if observed.split(".", 1)[0] == "3":
+                install_specs.append(spec)
+                print(f"[setup] zarr {observed} detected; will install {spec}", flush=True)
+            continue
+
+        if strict and pinned_version:
+            try:
+                observed = metadata.version(package_name)
+            except metadata.PackageNotFoundError:
+                observed = ""
+            if observed != pinned_version:
+                install_specs.append(spec)
+                print(
+                    f"[setup] {package_name} {observed or 'unknown'} != {pinned_version}; "
+                    f"will install {spec}",
+                    flush=True,
+                )
+
+    if install_specs and "zarr==2.18.3" not in install_specs:
+        install_specs.append("zarr==2.18.3")
+    if install_specs and "numcodecs==0.13.1" not in install_specs:
+        install_specs.append("numcodecs==0.13.1")
+
+    if not install_specs:
+        print("[setup] Python packages already importable", flush=True)
+        return
+
+    _run_command(
         [
             sys.executable,
             "-m",
             "pip",
             "install",
-            "--quiet",
-            "--upgrade",
-            "-r",
-            str(requirements_path),
-        ]
+            "--progress-bar",
+            "off",
+            *dict.fromkeys(install_specs),
+        ],
+        "pip install direct workshop packages",
     )
 
 
@@ -90,6 +173,7 @@ def _add_local_spix_checkout() -> bool:
 def ensure_spix(spix_install_url: str, *, in_colab: bool | None = None) -> None:
     """Make sure the SPIX Python package can be imported."""
     if importlib.util.find_spec("SPIX") is not None:
+        print("[setup] SPIX already importable", flush=True)
         return
 
     if in_colab is None:
@@ -101,8 +185,9 @@ def ensure_spix(spix_install_url: str, *, in_colab: bool | None = None) -> None:
     if not in_colab:
         raise ImportError("SPIX repo 안에서 실행하거나 SPIX를 설치하세요.")
 
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "--quiet", spix_install_url]
+    _run_command(
+        [sys.executable, "-m", "pip", "install", "--progress-bar", "off", spix_install_url],
+        "pip install SPIX",
     )
 
 
@@ -130,10 +215,20 @@ def patch_spix_optional_imports() -> None:
         )
 
 
-def ensure_bayesspace(*, in_colab: bool | None = None) -> None:
-    """Check the R BayesSpace package and install it only in Colab."""
+def ensure_bayesspace(*, in_colab: bool | None = None) -> bool:
+    """Check the R BayesSpace package.
+
+    By default Colab does not install BayesSpace during the live class because
+    Bioconductor installation can dominate the session.  Set
+    ``SPIX_WORKSHOP_INSTALL_BAYESSPACE=1`` to force a live R installation.
+    """
+    if os.environ.get("SPIX_WORKSHOP_FORCE_BAYESSPACE_LABELS", "0") == "1":
+        print("[setup] forced bundled BayesSpace labels", flush=True)
+        return False
+
     if shutil.which("Rscript") is None:
-        raise ImportError("BayesSpace 실행을 위해 Rscript가 필요합니다.")
+        print("[setup] Rscript not found; BayesSpace will use bundled labels", flush=True)
+        return False
 
     check = subprocess.run(
         [
@@ -145,14 +240,24 @@ def ensure_bayesspace(*, in_colab: bool | None = None) -> None:
         text=True,
     )
     if check.returncode == 0:
-        return
+        print("[setup] BayesSpace R package already available", flush=True)
+        return True
 
     if in_colab is None:
         in_colab = running_in_colab()
+    install_requested = os.environ.get("SPIX_WORKSHOP_INSTALL_BAYESSPACE", "0") == "1"
     if not in_colab:
-        raise ImportError("R package BayesSpace가 설치되어 있지 않습니다.")
+        print("[setup] BayesSpace R package missing; bundled labels will be used", flush=True)
+        return False
+    if not install_requested:
+        print(
+            "[setup] BayesSpace R package missing; bundled labels will be used. "
+            "Set SPIX_WORKSHOP_INSTALL_BAYESSPACE=1 for a live R install.",
+            flush=True,
+        )
+        return False
 
-    subprocess.check_call(
+    _run_command(
         [
             "Rscript",
             "-e",
@@ -163,8 +268,10 @@ def ensure_bayesspace(*, in_colab: bool | None = None) -> None:
                 "if (!requireNamespace('BayesSpace', quietly=TRUE)) "
                 "stop('BayesSpace install failed')"
             ),
-        ]
+        ],
+        "R install BayesSpace",
     )
+    return True
 
 
 def package_versions(package_names: list[str]) -> dict[str, str]:
