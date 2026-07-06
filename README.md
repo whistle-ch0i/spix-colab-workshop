@@ -26,8 +26,11 @@ The notebook code is intentionally split into short stepwise cells for a
 hands-on class. Most cells can be run from top to bottom without editing.
 Small repeated tasks such as file lookup, checksum checks, stage timing, and
 simple plotting live in `notebooks/workshop_helpers.py`; the analysis calls
-still use the original Scanpy, Squidpy, BANKSY, BayesSpace, SpaGCN, and SPIX
-APIs in the notebook.
+still use the original Scanpy, Squidpy, BANKSY, BayesSpace, and SPIX APIs in
+the notebook. SpaGCN is kept in the domain comparison, but the default Colab
+path reads bundled SpaGCN labels for the fixed 3,500-bin panel to avoid the
+TensorFlow import path that can restart free Colab kernels. Set
+`SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` only for a separate rehearsal.
 
 A second notebook keeps the broader manuscript mini-reproduction flow:
 
@@ -175,6 +178,8 @@ The notebook expects these raw URLs:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
 
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/spagcn_labels_1m_panel3500.csv`
+
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
@@ -199,6 +204,11 @@ the matching `SPIX_WORKSHOP_*_URL` value in the first notebook cell.
   bundled BayesSpace labels for the fixed 3,500-bin domain panel. Set
   `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` only for a rehearsal where a long R
   install is acceptable.
+- SpaGCN is not installed by the default Colab setup. The practical uses
+  bundled SpaGCN labels for the fixed 3,500-bin panel because SpaGCN imports
+  TensorFlow, which has restarted the free Colab kernel during setup. Set
+  `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` only in a rehearsal runtime where that risk
+  is acceptable.
 - Colab free-tier CPU/RAM is assigned by Colab and is not a reproducible knob
   for workshop participants. The first notebook cell records `cpu_count`,
   memory, and disk space for the actual runtime.

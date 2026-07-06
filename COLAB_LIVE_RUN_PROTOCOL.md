@@ -24,6 +24,10 @@ Bundled BayesSpace label URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
 
+Bundled SpaGCN label URL:
+
+`https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/spagcn_labels_1m_panel3500.csv`
+
 Requirements URL:
 
 `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
@@ -77,6 +81,9 @@ or an enterprise runtime.
 - The standard sections use the 8 um pseudobulk object made from the 2 um ROI.
 - The spatial domain section includes expression-only baseline, Squidpy spatial
   graph, BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN.
+- In the default Colab path, SpaGCN uses bundled labels for the fixed
+  3,500-bin panel. Do not turn on live SpaGCN during class unless it has already
+  been rehearsed in the same Colab runtime type.
 - The CCI section includes spatial neighborhood enrichment and Squidpy `ligrec`.
 - The SPIX section reports the VisiumHD P2-style path:
   30-dimensional embedding, graph smoothing before equalization,
@@ -98,15 +105,14 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - Validation: top-to-bottom notebook pass with `N_JOBS=2`.
 - Code cells: 37/37 passed.
 - Local elapsed time in Colab safe mode after dependencies and data were
-  present: 195.32 seconds.
-- Final process peak RSS in local safe-mode validation: 3.26 GB.
+  present: 219.32 seconds.
+- Final process peak RSS in local safe-mode validation: 3.06 GB.
 - Setup files included in the repo:
   `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
   `notebooks/workshop_helpers.py`.
 - Pinned Python package check:
-  `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
-  `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
-  `numcodecs 0.13.1`.
+  `scanpy 1.11.5`, `squidpy 1.6.5`, `pybanksy 1.3.5`,
+  `anndata 0.11.4`, `zarr 2.18.3`, `numcodecs 0.13.1`.
 - Squidpy Moran top examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`, `COL3A1`.
 - Top 100 HVG/SVG overlap: 3 genes.
 - Spatial domain methods: expression-only baseline, Squidpy spatial graph,
@@ -114,6 +120,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - BayesSpace uses live R BayesSpace only when the R package is already
   available or `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` is set. The default Colab
   fallback uses bundled BayesSpace labels for the fixed 3,500-bin domain panel.
+- SpaGCN uses bundled labels by default for the fixed 3,500-bin domain panel.
+  Live SpaGCN is optional with `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1`; it is not the
+  workshop default because it imports TensorFlow and can restart a free Colab
+  kernel.
 - CCI: neighborhood enrichment plus Squidpy `ligrec` with 11 LR candidates and
   20 permutations.
 - SPIX: manuscript-style 30-dimensional embedding, graph smoothing,
@@ -128,11 +138,11 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   `r50` 777, `r80` 303, `r100` 197, `r150` 89, `r200` 49,
   `r250` 28, `r300` 21, `r350` 18, `r400` 12, `r450` 12,
   `r500` 5.
-- Slowest local stages in Colab safe mode: 8 um preprocessing 41.85 sec,
-  SPIX multiscale segmentation 37.68 sec, equalization sweep 28.62 sec,
-  import analysis packages 20.39 sec, smoothing sweep 19.48 sec,
-  SPIX multiscale Moran/SVG 11.37 sec. BayesSpace label loading took
-  0.01 sec.
+- Slowest local stages in Colab safe mode: SPIX multiscale segmentation
+  45.00 sec, 8 um preprocessing 42.69 sec, equalization sweep 29.19 sec,
+  smoothing sweep 26.07 sec, import analysis packages 20.09 sec,
+  SPIX multiscale Moran/SVG 16.40 sec. BayesSpace and SpaGCN bundled label
+  loading each took 0.01 sec.
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
@@ -152,7 +162,7 @@ Observed on 2026-07-06 with the earlier 16 um practical notebook:
 - Segment-level spatial LR scoring: 3.89 seconds.
 
 For planning the current Colab-safe notebook, the local analysis pass takes
-about 3.3 minutes after packages and data are present. A fresh Colab runtime
+about 3.7 minutes after packages and data are present. A fresh Colab runtime
 also has to install missing packages and download files, so reserve about
 6-10 minutes until a new real Colab timing report is collected.
 

@@ -18,11 +18,13 @@ Official Colab FAQ checked on 2026-07-05:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/visiumhd_p2_roi_context_1000000_downsample.csv`
 6. Confirm the bundled BayesSpace label URL resolves:
    `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/bayesspace_labels_1m_panel3500.csv`
-7. Confirm the requirements/bootstrap/helper URLs resolve:
+7. Confirm the bundled SpaGCN label URL resolves:
+   `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/data/spagcn_labels_1m_panel3500.csv`
+8. Confirm the requirements/bootstrap/helper URLs resolve:
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/requirements-colab.txt`
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/colab_bootstrap.py`
    - `https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/notebooks/workshop_helpers.py`
-8. Confirm the SPIX install URL in the notebook points to a branch containing
+9. Confirm the SPIX install URL in the notebook points to a branch containing
    the required SPIX APIs.
 
 ## Free-Tier Condition
@@ -80,16 +82,15 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 - Result:
   - top-to-bottom notebook pass with `N_JOBS=2`
   - local elapsed in Colab safe mode after dependencies and data were present:
-    195.32 seconds
-  - final process peak RSS in local safe-mode validation: 3.26 GB
+    219.32 seconds
+  - final process peak RSS in local safe-mode validation: 3.06 GB
   - code cells: 37/37 passed
   - setup files are included in the repo:
     `requirements-colab.txt`, `notebooks/colab_bootstrap.py`, and
     `notebooks/workshop_helpers.py`
   - pinned Python package check:
-    `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
-    `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
-    `numcodecs 0.13.1`
+    `scanpy 1.11.5`, `squidpy 1.6.5`, `pybanksy 1.3.5`,
+    `anndata 0.11.4`, `zarr 2.18.3`, `numcodecs 0.13.1`
 - Output checks:
   - top Squidpy Moran SVG examples: `PIGR`, `OLFM4`, `FCGBP`, `COL1A1`,
     `COL3A1`
@@ -102,6 +103,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
   - BayesSpace runs live only if R BayesSpace is already available or
     `SPIX_WORKSHOP_INSTALL_BAYESSPACE=1` is set. The default Colab fallback
     uses bundled BayesSpace labels for the fixed domain panel.
+  - SpaGCN uses bundled labels by default for the fixed domain panel. Live
+    SpaGCN is optional with `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1`, but it is not
+    the class default because it imports TensorFlow and can restart a free
+    Colab kernel.
   - standard sections use the full `1000000 x 2515` ROI through 8 um
     pseudobulk; default Colab safe-mode SPIX uses a central `500000 x 2515`
     native 2 um subset
@@ -119,10 +124,10 @@ Observed locally on 2026-07-06 with the combined practical notebook:
     `r250` 28, `r300` 21, `r350` 18, `r400` 12, `r450` 12,
     `r500` 5
   - slowest local stages in Colab safe mode:
-    8 um preprocessing 41.85 sec, SPIX multiscale segmentation 37.68 sec,
-    equalization sweep 28.62 sec, import analysis packages 20.39 sec,
-    smoothing sweep 19.48 sec, SPIX multiscale Moran/SVG 11.37 sec.
-    BayesSpace label loading took 0.01 sec.
+    SPIX multiscale segmentation 45.00 sec, 8 um preprocessing 42.69 sec,
+    equalization sweep 29.19 sec, smoothing sweep 26.07 sec,
+    import analysis packages 20.09 sec, SPIX multiscale Moran/SVG 16.40 sec.
+    BayesSpace and SpaGCN bundled label loading each took 0.01 sec.
 
 This validates the current notebook/data path before a live Colab run. Collect
 a new downloaded timing report from real Colab after this change is pushed.

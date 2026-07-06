@@ -27,7 +27,6 @@ DIRECT_PACKAGE_MODULES = {
     "tqdm-joblib": "tqdm_joblib",
     "python-igraph": "igraph",
     "leidenalg": "leidenalg",
-    "SpaGCN": "SpaGCN",
     "pybanksy": "banksy",
 }
 

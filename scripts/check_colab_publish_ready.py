@@ -26,6 +26,9 @@ EXPECTED_SHA256 = {
     "data/bayesspace_labels_1m_panel3500.csv": (
         "927f13e098dd1558e88bb90074b02de52078918c010cc4db3c647b04c96c7a14"
     ),
+    "data/spagcn_labels_1m_panel3500.csv": (
+        "de3f7a7907ff6bd0d67afd2aa216538b834d3c1d8b6a9368c723770235287d73"
+    ),
 }
 
 REQUIRED_FILES = [
@@ -44,6 +47,7 @@ REQUIRED_URLS = [
     f"{RAW_BASE}/data/visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad",
     f"{RAW_BASE}/data/visiumhd_p2_roi_context_1000000_downsample.csv",
     f"{RAW_BASE}/data/bayesspace_labels_1m_panel3500.csv",
+    f"{RAW_BASE}/data/spagcn_labels_1m_panel3500.csv",
 ]
 
 
@@ -81,6 +85,7 @@ def check_local_files(root: Path) -> list[str]:
             "colab_bootstrap.py",
             "workshop_helpers.py",
             "bayesspace_labels_1m_panel3500.csv",
+            "spagcn_labels_1m_panel3500.csv",
         ]:
             if token not in text:
                 errors.append(f"notebook does not reference {token}")

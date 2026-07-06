@@ -41,19 +41,20 @@ Local fallback executor result, 2026-07-06:
 - Code cells: 37/37 passed.
 - Colab safe mode was forced for this validation:
   `SPIX_WORKSHOP_COLAB_SAFE_MODE=1`.
-- Total elapsed in Colab safe mode: 195.32 seconds after local dependencies and
+- Total elapsed in Colab safe mode: 219.32 seconds after local dependencies and
   data were present.
-- Final process peak RSS in local safe-mode validation: 3.26 GB.
+- Final process peak RSS in local safe-mode validation: 3.06 GB.
 - Notebook structure: the practical notebook is split into short, stepwise code
   cells for workshop use. Repeated file/checksum/timing/plotting chores live in
   `notebooks/workshop_helpers.py`. Colab setup chores live in
   `notebooks/colab_bootstrap.py`, and Python package versions are pinned in
-  `requirements-colab.txt`. The notebook cells still call Scanpy, Squidpy,
-  BANKSY, BayesSpace, SpaGCN, and SPIX directly.
+  `requirements-colab.txt`. The notebook cells call Scanpy, Squidpy, BANKSY,
+  BayesSpace, and SPIX directly; SpaGCN is compared with bundled labels by
+  default, with live execution available only when
+  `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1` is set.
 - Pinned package check in the validation run:
-  `scanpy 1.11.5`, `squidpy 1.6.5`, `SpaGCN 1.2.7`,
-  `pybanksy 1.3.5`, `anndata 0.11.4`, `zarr 2.18.3`,
-  `numcodecs 0.13.1`.
+  `scanpy 1.11.5`, `squidpy 1.6.5`, `pybanksy 1.3.5`,
+  `anndata 0.11.4`, `zarr 2.18.3`, `numcodecs 0.13.1`.
 - ROI context plot input:
   `data/visiumhd_p2_roi_context_1000000_downsample.csv`
   - downsample points: 120,000 full-P2 coordinates
@@ -72,19 +73,22 @@ Local fallback executor result, 2026-07-06:
   - BANKSY through `pyBANKSY`, using 800 HVGs,
   - BayesSpace through live R BayesSpace when available, otherwise bundled
     labels for the fixed 3,500-bin domain panel,
-  - SpaGCN.
+  - SpaGCN through bundled labels by default for the fixed 3,500-bin domain
+    panel.
   - BayesSpace live R input is checked for zero-count bins; if the selected
     subset is unsafe, the notebook falls back to the full workshop gene set
     before calling R BayesSpace.
   - Bundled BayesSpace label file:
     `data/bayesspace_labels_1m_panel3500.csv`
+  - Bundled SpaGCN label file:
+    `data/spagcn_labels_1m_panel3500.csv`
   - Bundled-label validation ARI:
-    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.386,
-    expression vs BayesSpace 0.633, expression vs SpaGCN 0.703,
+    expression vs Squidpy spatial graph 0.067, expression vs BANKSY 0.466,
+    expression vs BayesSpace 0.633, expression vs SpaGCN 0.643,
     Squidpy spatial graph vs BANKSY 0.118, Squidpy spatial graph vs
-    BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.076,
-    BANKSY vs BayesSpace 0.310, BANKSY vs SpaGCN 0.448,
-    BayesSpace vs SpaGCN 0.594.
+    BayesSpace 0.072, Squidpy spatial graph vs SpaGCN 0.061,
+    BANKSY vs BayesSpace 0.440, BANKSY vs SpaGCN 0.438,
+    BayesSpace vs SpaGCN 0.547.
 - Cell-cell interaction:
   - Squidpy neighborhood enrichment on BANKSY domains, 50 permutations.
   - Squidpy `ligrec`, 11 ligand-receptor candidates, 20 permutations,
@@ -122,13 +126,14 @@ Local fallback executor result, 2026-07-06:
   - `r450`: 12
   - `r500`: 5
 - Slowest stages:
-  - 8 um preprocessing with Scanpy/Squidpy: 41.85 seconds
-  - SPIX multiscale segmentation: 37.68 seconds
-  - SPIX equalization sweep: 28.62 seconds
-  - import analysis packages: 20.39 seconds
-  - SPIX smoothing sweep: 19.48 seconds
-  - SPIX multiscale Moran/SVG: 11.37 seconds
+  - SPIX multiscale segmentation: 45.00 seconds
+  - 8 um preprocessing with Scanpy/Squidpy: 42.69 seconds
+  - SPIX equalization sweep: 29.19 seconds
+  - SPIX smoothing sweep: 26.07 seconds
+  - import analysis packages: 20.09 seconds
+  - SPIX multiscale Moran/SVG: 16.40 seconds
   - BayesSpace bundled label loading: 0.01 seconds
+  - SpaGCN bundled label loading: 0.01 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 

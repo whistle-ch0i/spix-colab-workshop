@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover
 DATA_FILE = "visiumhd_colon_crc_p2_2um_roi_1000000x2515.h5ad"
 ROI_CONTEXT_FILE = "visiumhd_p2_roi_context_1000000_downsample.csv"
 BAYESSPACE_LABELS_FILE = "bayesspace_labels_1m_panel3500.csv"
+SPAGCN_LABELS_FILE = "spagcn_labels_1m_panel3500.csv"
 DEFAULT_DATA_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{DATA_FILE}"
@@ -29,6 +30,10 @@ DEFAULT_ROI_CONTEXT_URL = (
 DEFAULT_BAYESSPACE_LABELS_URL = (
     "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
     f"data/{BAYESSPACE_LABELS_FILE}"
+)
+DEFAULT_SPAGCN_LABELS_URL = (
+    "https://raw.githubusercontent.com/whistle-ch0i/spix-colab-workshop/main/"
+    f"data/{SPAGCN_LABELS_FILE}"
 )
 HELPER_FILE = "workshop_helpers.py"
 DEFAULT_HELPER_URL = (
@@ -100,6 +105,8 @@ def setup_cells(
     roi_context_sha256: str,
     bayesspace_labels_url: str,
     bayesspace_labels_sha256: str,
+    spagcn_labels_url: str,
+    spagcn_labels_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -139,6 +146,9 @@ def setup_cells(
     BAYESSPACE_LABELS_FILE = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_FILE", __BAYESSPACE_LABELS_FILE__)
     BAYESSPACE_LABELS_URL = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_URL", __BAYESSPACE_LABELS_URL__)
     BAYESSPACE_LABELS_SHA256 = os.environ.get("SPIX_WORKSHOP_BAYESSPACE_LABELS_SHA256", __BAYESSPACE_LABELS_SHA256__)
+    SPAGCN_LABELS_FILE = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_FILE", __SPAGCN_LABELS_FILE__)
+    SPAGCN_LABELS_URL = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_URL", __SPAGCN_LABELS_URL__)
+    SPAGCN_LABELS_SHA256 = os.environ.get("SPIX_WORKSHOP_SPAGCN_LABELS_SHA256", __SPAGCN_LABELS_SHA256__)
     REQUIREMENTS_FILE = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_FILE", __REQUIREMENTS_FILE__)
     REQUIREMENTS_URL = os.environ.get("SPIX_WORKSHOP_REQUIREMENTS_URL", __REQUIREMENTS_URL__)
     BOOTSTRAP_FILE = os.environ.get("SPIX_WORKSHOP_BOOTSTRAP_FILE", __BOOTSTRAP_FILE__)
@@ -226,6 +236,9 @@ def setup_cells(
         .replace("__BAYESSPACE_LABELS_FILE__", json.dumps(BAYESSPACE_LABELS_FILE))
         .replace("__BAYESSPACE_LABELS_URL__", json.dumps(bayesspace_labels_url))
         .replace("__BAYESSPACE_LABELS_SHA256__", json.dumps(bayesspace_labels_sha256))
+        .replace("__SPAGCN_LABELS_FILE__", json.dumps(SPAGCN_LABELS_FILE))
+        .replace("__SPAGCN_LABELS_URL__", json.dumps(spagcn_labels_url))
+        .replace("__SPAGCN_LABELS_SHA256__", json.dumps(spagcn_labels_sha256))
         .replace("__REQUIREMENTS_FILE__", json.dumps(REQUIREMENTS_FILE))
         .replace("__REQUIREMENTS_URL__", json.dumps(requirements_url))
         .replace("__BOOTSTRAP_FILE__", json.dumps(BOOTSTRAP_FILE))
@@ -246,8 +259,9 @@ def setup_cells(
 
             파일 다운로드, checksum 확인, 시간 기록처럼 분석의 핵심이 아닌 반복
             작업은 `workshop_helpers.py`에 모아 두었습니다. 분석 도구 자체는 뒤에서
-            Scanpy, Squidpy, BANKSY, BayesSpace, SpaGCN, SPIX 원래 함수 이름으로
-            직접 호출합니다.
+            Scanpy, Squidpy, BANKSY, BayesSpace, SPIX 원래 함수 이름으로
+            직접 호출합니다. SpaGCN은 Colab 안정성을 위해 기본값에서는 미리
+            계산한 label을 읽고, live 실행을 켰을 때만 직접 import합니다.
             """
         ),
         code(setup_code),
@@ -259,8 +273,10 @@ def setup_cells(
             패키지를 맞춥니다. 로컬에서 실행할 때는 현재 환경을 그대로 사용합니다.
 
             Spatial domain 비교에 BayesSpace를 포함했기 때문에 R의 BayesSpace
-            패키지도 함께 확인합니다. 설치와 import 보정은 `colab_bootstrap.py`에
-            모아 두고, 분석 코드는 뒤쪽 cell에서 원래 패키지 API로 직접 호출합니다.
+            패키지도 함께 확인합니다. SpaGCN은 TensorFlow import가 Colab kernel
+            restart를 일으키는 경우가 있어 기본 설치 목록에서는 제외했습니다.
+            뒤쪽 SpaGCN cell은 미리 계산해 둔 label을 읽고, 필요할 때만 live
+            실행으로 바꿀 수 있습니다.
             """
         ),
         code(
@@ -274,7 +290,6 @@ def setup_cells(
             print(json.dumps(package_versions([
                 "scanpy",
                 "squidpy",
-                "SpaGCN",
                 "pybanksy",
                 "anndata",
                 "zarr",
@@ -318,7 +333,6 @@ def setup_cells(
                 import scipy.sparse as sp
                 import scipy.io as sio
                 import squidpy as sq
-                import SpaGCN
                 from banksy.initialize_banksy import initialize_banksy
                 from banksy.run_banksy import run_banksy_multiparam
                 from IPython.display import display
@@ -1058,43 +1072,106 @@ def domain_cells() -> list:
             정보와 위치 정보를 함께 반영합니다. 여기서는 histology image 없이 좌표만
             사용합니다. 같은 panel에서 돌려야 BANKSY, BayesSpace와 해석을 비교할
             수 있습니다.
+
+            다만 Colab 무료 runtime에서는 SpaGCN import가 TensorFlow 계열 import를
+            함께 일으키면서 kernel이 조용히 재시작되는 경우가 있습니다. 그래서
+            실습 기본값은 같은 ROI와 같은 3,500-bin panel에서 미리 계산해 둔
+            SpaGCN label을 읽습니다. 분석 개념과 결과 비교는 그대로 진행하고,
+            live 실행이 꼭 필요할 때만 첫 cell에서
+            `SPIX_WORKSHOP_RUN_SPAGCN_LIVE=1`을 설정합니다.
             """
         ),
         code(
             """
             with timed_stage("domain_spagcn", STAGE_TIMES):
-                spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
-                if sp.issparse(spagcn_adata.X):
-                    spagcn_adata.X = spagcn_adata.X.toarray().astype(np.float32)
+                RUN_SPAGCN_LIVE = os.environ.get("SPIX_WORKSHOP_RUN_SPAGCN_LIVE", "0").lower()
+                RUN_SPAGCN_LIVE = RUN_SPAGCN_LIVE in {"1", "true", "yes"}
 
-                spagcn_adj = SpaGCN.calculate_adj_matrix(
-                    x=domain_coords[:, 0].tolist(),
-                    y=domain_coords[:, 1].tolist(),
-                    histology=False,
-                )
-                spagcn_l = SpaGCN.search_l(0.5, spagcn_adj, start=0.01, end=1000, tol=0.01, max_run=40)
-                if spagcn_l is None:
-                    positive_distances = spagcn_adj[spagcn_adj > 0]
-                    spagcn_l = float(np.median(positive_distances))
+                spagcn_dir = OUTPUT_DIR / "spagcn"
+                spagcn_dir.mkdir(parents=True, exist_ok=True)
+                spagcn_source = "bundled SpaGCN labels"
+                spagcn_l = None
 
-                spagcn_model = SpaGCN.SpaGCN()
-                spagcn_model.set_l(spagcn_l)
-                spagcn_model.train(
-                    spagcn_adata,
-                    spagcn_adj,
-                    num_pcs=min(30, spagcn_adata.n_vars - 1, spagcn_adata.n_obs - 1),
-                    lr=0.01,
-                    max_epochs=120,
-                    init_spa=True,
-                    init="louvain",
-                    n_neighbors=10,
-                    res=0.4,
-                    tol=0.005,
-                )
-                spagcn_labels, spagcn_prob = spagcn_model.predict()
-                domain_adata.obs["spagcn_domain"] = pd.Categorical(spagcn_labels.astype(str))
+                if RUN_SPAGCN_LIVE:
+                    if importlib.util.find_spec("SpaGCN") is None:
+                        subprocess.check_call([
+                            sys.executable,
+                            "-m",
+                            "pip",
+                            "install",
+                            "-q",
+                            "SpaGCN==1.2.7",
+                            "zarr==2.18.3",
+                            "numcodecs==0.13.1",
+                        ])
+                    import SpaGCN
 
-            print(f"SpaGCN l: {spagcn_l:.4f}")
+                    spagcn_source = "live SpaGCN"
+                    spagcn_adata = domain_adata[:, domain_adata.var["highly_variable"].to_numpy()].copy()
+                    if sp.issparse(spagcn_adata.X):
+                        spagcn_adata.X = spagcn_adata.X.toarray().astype(np.float32)
+
+                    spagcn_adj = SpaGCN.calculate_adj_matrix(
+                        x=domain_coords[:, 0].tolist(),
+                        y=domain_coords[:, 1].tolist(),
+                        histology=False,
+                    )
+                    spagcn_l = SpaGCN.search_l(
+                        0.5,
+                        spagcn_adj,
+                        start=0.01,
+                        end=1000,
+                        tol=0.01,
+                        max_run=40,
+                    )
+                    if spagcn_l is None:
+                        positive_distances = spagcn_adj[spagcn_adj > 0]
+                        spagcn_l = float(np.median(positive_distances))
+
+                    spagcn_model = SpaGCN.SpaGCN()
+                    spagcn_model.set_l(spagcn_l)
+                    spagcn_model.train(
+                        spagcn_adata,
+                        spagcn_adj,
+                        num_pcs=min(30, spagcn_adata.n_vars - 1, spagcn_adata.n_obs - 1),
+                        lr=0.01,
+                        max_epochs=120,
+                        init_spa=True,
+                        init="louvain",
+                        n_neighbors=10,
+                        res=0.4,
+                        tol=0.005,
+                    )
+                    spagcn_labels, spagcn_prob = spagcn_model.predict()
+                    domain_adata.obs["spagcn_domain"] = pd.Categorical(spagcn_labels.astype(str))
+                    pd.DataFrame({
+                        "barcode": domain_adata.obs_names,
+                        "spagcn_domain": domain_adata.obs["spagcn_domain"].astype(str).to_numpy(),
+                    }).to_csv(spagcn_dir / "spagcn_labels.csv", index=False)
+                else:
+                    spagcn_labels_path = locate_or_download(
+                        SPAGCN_LABELS_FILE,
+                        SPAGCN_LABELS_URL,
+                        sha256=SPAGCN_LABELS_SHA256,
+                    )
+                    spagcn_labels_table = pd.read_csv(spagcn_labels_path).set_index("barcode")
+                    missing_spagcn = domain_adata.obs_names.difference(spagcn_labels_table.index)
+                    assert len(missing_spagcn) == 0, "SpaGCN label과 현재 domain panel이 맞지 않습니다."
+
+                    domain_adata.obs["spagcn_domain"] = pd.Categorical(
+                        spagcn_labels_table.loc[
+                            domain_adata.obs_names,
+                            "spagcn_domain",
+                        ].astype(str).to_numpy()
+                    )
+                    spagcn_labels_table.loc[domain_adata.obs_names].reset_index().to_csv(
+                        spagcn_dir / "spagcn_labels.csv",
+                        index=False,
+                    )
+
+            print("source:", spagcn_source)
+            if spagcn_l is not None:
+                print(f"SpaGCN l: {spagcn_l:.4f}")
             print("clusters:", domain_adata.obs["spagcn_domain"].nunique())
             """
         ),
@@ -1803,6 +1880,7 @@ def final_cells() -> list:
                         "spatial_domain_counts": str(OUTPUT_DIR / "spatial_domain_counts.csv"),
                         "spatial_domain_ari": str(OUTPUT_DIR / "spatial_domain_ari.csv"),
                         "bayesspace_labels": str(OUTPUT_DIR / "bayesspace" / "bayesspace_labels.csv"),
+                        "spagcn_labels": str(OUTPUT_DIR / "spagcn" / "spagcn_labels.csv"),
                         "smoothing_selection": str(OUTPUT_DIR / "spix_smoothing_selection.json"),
                         "equalization_selection": str(OUTPUT_DIR / "spix_equalization_selection.json"),
                         "segments_index": str(SEGMENT_DIR / "segments_index.csv"),
@@ -1836,6 +1914,8 @@ def combined_notebook(
     roi_context_sha256: str,
     bayesspace_labels_url: str,
     bayesspace_labels_sha256: str,
+    spagcn_labels_url: str,
+    spagcn_labels_sha256: str,
     requirements_url: str,
     bootstrap_url: str,
     helper_url: str,
@@ -1856,7 +1936,8 @@ def combined_notebook(
             4. **SPIX**: 2 um 정보를 여러 scale의 tissue unit으로 어떻게 바꿀 수 있는가?
 
             앞의 세 파트는 8 um pseudobulk에서 안정적으로 진행하고, 마지막 SPIX
-            파트는 2 um ROI 전체를 사용합니다.
+            파트는 2 um bin을 직접 사용합니다. Colab safe mode에서는 중앙 500k
+            2 um bin으로 시작하고, 여유가 있으면 1M ROI까지 올릴 수 있습니다.
 
             코드는 한 셀에서 한 가지 일만 하도록 나누었습니다. 수업 중에는 표와
             그림을 먼저 보고, 필요할 때만 코드 안의 파라미터를 확인하면 됩니다.
@@ -1867,8 +1948,8 @@ def combined_notebook(
             ## 입력 자료
 
             원본 P2는 2 um bin이 약 8.7M개입니다. 여기서는 그중 하나의 ROI를
-            사용합니다. 일반 분석은 8 um pseudobulk로 진행하고, SPIX는 2 um ROI
-            전체를 사용합니다.
+            사용합니다. 일반 분석은 8 um pseudobulk로 진행하고, SPIX는 2 um bin을
+            직접 사용합니다.
 
             실습에서 중요한 것은 “가장 큰 데이터”를 억지로 Colab에 올리는 것이
             아니라, 같은 ROI에서 표준 공간 분석과 SPIX의 multiscale 분석이 어떻게
@@ -1887,6 +1968,8 @@ def combined_notebook(
             roi_context_sha256,
             bayesspace_labels_url,
             bayesspace_labels_sha256,
+            spagcn_labels_url,
+            spagcn_labels_sha256,
             requirements_url,
             bootstrap_url,
             helper_url,
@@ -1920,6 +2003,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--roi-context-url", default=DEFAULT_ROI_CONTEXT_URL)
     parser.add_argument("--bayesspace-labels-file", default=f"data/{BAYESSPACE_LABELS_FILE}")
     parser.add_argument("--bayesspace-labels-url", default=DEFAULT_BAYESSPACE_LABELS_URL)
+    parser.add_argument("--spagcn-labels-file", default=f"data/{SPAGCN_LABELS_FILE}")
+    parser.add_argument("--spagcn-labels-url", default=DEFAULT_SPAGCN_LABELS_URL)
     parser.add_argument("--requirements-url", default=DEFAULT_REQUIREMENTS_URL)
     parser.add_argument("--bootstrap-url", default=DEFAULT_BOOTSTRAP_URL)
     parser.add_argument("--helper-url", default=DEFAULT_HELPER_URL)
@@ -1937,6 +2022,8 @@ def main() -> None:
     bayesspace_labels_sha256 = (
         sha256sum(bayesspace_labels_path) if bayesspace_labels_path.exists() else ""
     )
+    spagcn_labels_path = Path(args.spagcn_labels_file)
+    spagcn_labels_sha256 = sha256sum(spagcn_labels_path) if spagcn_labels_path.exists() else ""
     notebook_dir = Path(args.notebook_dir)
 
     name, nb = combined_notebook(
@@ -1946,6 +2033,8 @@ def main() -> None:
         roi_context_sha256,
         args.bayesspace_labels_url,
         bayesspace_labels_sha256,
+        args.spagcn_labels_url,
+        spagcn_labels_sha256,
         args.requirements_url,
         args.bootstrap_url,
         args.helper_url,
@@ -1960,6 +2049,7 @@ def main() -> None:
                 "data_sha256": data_sha256,
                 "roi_context_sha256": roi_context_sha256,
                 "bayesspace_labels_sha256": bayesspace_labels_sha256,
+                "spagcn_labels_sha256": spagcn_labels_sha256,
             },
             indent=2,
         )

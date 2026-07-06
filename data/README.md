@@ -13,6 +13,17 @@ ROI overview helper:
 This CSV contains 120,000 downsampled full-P2 coordinates plus the selected ROI
 bounding box. The notebook uses it only for the first ROI-location plot.
 
+Bundled spatial domain labels for the fixed 3,500-bin 8 um panel:
+
+`bayesspace_labels_1m_panel3500.csv`
+
+`spagcn_labels_1m_panel3500.csv`
+
+These files keep the live Colab run stable. BayesSpace can require a long
+R/Bioconductor setup, and SpaGCN can restart free Colab kernels through its
+TensorFlow import path. The notebook still explains both methods in the spatial
+domain comparison section.
+
 The previous 500k ROI is kept as a fallback for quick debugging:
 
 `visiumhd_colon_crc_p2_2um_roi_500000x2515.h5ad`
