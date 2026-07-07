@@ -42,6 +42,7 @@ EXPECTED_SHA256 = {
 
 REQUIRED_FILES = [
     "notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb",
+    "notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb",
     "notebooks/workshop_helpers.py",
     "notebooks/colab_bootstrap.py",
     "requirements-colab.txt",
@@ -50,6 +51,7 @@ REQUIRED_FILES = [
 
 REQUIRED_URLS = [
     f"{RAW_BASE}/notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb",
+    f"{RAW_BASE}/notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb",
     f"{RAW_BASE}/notebooks/workshop_helpers.py",
     f"{RAW_BASE}/notebooks/colab_bootstrap.py",
     f"{RAW_BASE}/requirements-colab.txt",
@@ -89,8 +91,14 @@ def check_local_files(root: Path) -> list[str]:
             if required_line not in text:
                 errors.append(f"requirements-colab.txt missing {required_line}")
 
-    notebook = root / "notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb"
-    if notebook.exists():
+    notebook_files = [
+        "notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb",
+        "notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb",
+    ]
+    for notebook_relative in notebook_files:
+        notebook = root / notebook_relative
+        if not notebook.exists():
+            continue
         text = notebook.read_text()
         for token in [
             "requirements-colab.txt",
@@ -103,7 +111,7 @@ def check_local_files(root: Path) -> list[str]:
             "crc_ontology_layer_summary_by_scale.csv",
         ]:
             if token not in text:
-                errors.append(f"notebook does not reference {token}")
+                errors.append(f"{notebook_relative} does not reference {token}")
 
     return errors
 

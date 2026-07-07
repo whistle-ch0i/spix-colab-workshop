@@ -8,9 +8,17 @@ Main practical notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 
+Downstream lecture notebook:
+
+`notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`
+
 Colab URL:
 
 `https://colab.research.google.com/github/whistle-ch0i/spix-colab-workshop/blob/main/notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
+
+Downstream lecture Colab URL:
+
+`https://colab.research.google.com/github/whistle-ch0i/spix-colab-workshop/blob/main/notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`
 
 Data URL:
 
@@ -84,6 +92,11 @@ or an enterprise runtime.
 - `validation_passed` is `true`.
 - The notebook completes the SVG, spatial domain, cell-cell interaction,
   and SPIX sections.
+- In the downstream lecture notebook, SVG continues into domain DEG comparison,
+  SVG module clustering, and program overlap instead of stopping at the SVG
+  rank table.
+- In the downstream lecture notebook, spatial domain clustering is followed by
+  marker/program interpretation against the expression-only baseline.
 - The final report contains stage timings.
 - The notebook prints `[memory] ...` lines around data loading, pseudobulk,
   cleanup, and SPIX stages. If Colab exits silently, the last printed memory
@@ -159,6 +172,26 @@ Observed locally on 2026-07-06 with the combined practical notebook:
 
 This is the current preflight baseline. Run the notebook once in real Colab
 after pushing any data/notebook changes and keep the downloaded timing report.
+
+## Current Downstream Lecture Local Check
+
+Observed locally on 2026-07-08 with the KOGO downstream lecture notebook:
+
+- Notebook: `notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`.
+- Code cells: 53/53 passed.
+- Dataset: native 2 um ROI, `1000000 x 2515`.
+- 8 um pseudobulk: `62898 x 2515`.
+- Spatial domain comparison panel: `3500 x 2515`.
+- SPIX input: full native 2 um ROI, `1000000 x 2515`.
+- Local elapsed time after dependencies and data were present: 246.92 seconds.
+- Final process peak RSS: 4.03 GB.
+- New downstream output tables include `svg_vs_domain_deg.csv`,
+  `svg_module_program_overlap.csv`, `domain_spatial_coherence.csv`,
+  `spatial_domain_specific_marker_candidates.csv`, and `cci_tool_reference.csv`.
+
+The local sandbox blocks the multiprocessing socket used by Squidpy `ligrec`,
+so the checked run was executed outside the sandbox with the same 2-core cap.
+That matches normal local execution and the Colab runtime path.
 
 ## Earlier Passing Colab CPU Run
 

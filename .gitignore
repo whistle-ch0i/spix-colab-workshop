@@ -3,6 +3,7 @@ spix_choi_whisoo_outputs/
 spix_korean_lecture_outputs/
 data_large_probe/
 data/visiumhd_colon_crc_p2_square016um_roi_5000x1800.*
+logs/
 *.tmp
 *.tmp.*
 __pycache__/

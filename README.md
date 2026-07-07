@@ -6,17 +6,28 @@ the public 10x Genomics Visium HD Human Colon Cancer P2 dataset. The notebook
 shows where the ROI sits in the full section, runs standard spatial workflows on
 8 um pseudobulk, and then runs SPIX on the native 2 um ROI.
 
-Main practical notebook:
+Main practical notebooks:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
+
+`notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`
+
+The second notebook is the KOGO downstream lecture version. It follows the
+flow of the earlier KOGO spatial pipeline notebook: Visium deconvolution,
+VisiumHD segmentation, and Xenium/cell-level outputs are treated as upstream
+inputs, then the practical moves into SVG, spatial domain interpretation, CCI,
+and SPIX.
 
 Session flow:
 
 - ROI overview: full P2 downsample plus selected ROI box
 - 8 um pseudobulk from native 2 um bins
-- SVG: HVG versus Squidpy Moran's I
+- SVG: Squidpy Moran's I, domain DEG comparison, SVG modules, and small
+  CRC program overlap
 - spatial domain comparison: expression-only baseline, Squidpy spatial graph,
   BANKSY through `pyBANKSY`, BayesSpace, and SpaGCN
+- spatial domain interpretation: spatial coherence, spatial-domain-specific
+  marker candidates, and program heatmaps against expression-only clusters
 - cell-cell interaction: spatial neighborhood enrichment, Squidpy `ligrec`,
   and bundled LIANA rank-aggregate results on the same BayesSpace CCI domains
 - SPIX: VisiumHD P2-style embedding, automatic graph smoothing selection,
@@ -42,6 +53,12 @@ For the panel-by-panel boundary between live Colab execution and reference-only
 full reproduction, see `MANUSCRIPT_CORE_RESULTS_MAP.md`.
 
 For the free-tier check, use `COLAB_LIVE_RUN_PROTOCOL.md`.
+
+For the reference PDFs requested for the theory slides, use:
+
+`references/kogo_spatial_downstream_references.tsv`
+
+`references/pdf_bundle/`
 
 ## Dataset
 
@@ -128,6 +145,13 @@ CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
 python scripts/write_korean_workshop_notebook.py
 ```
 
+Regenerate the KOGO downstream lecture notebook:
+
+```bash
+CONDA_NO_PLUGINS=true conda run --no-capture-output -n SPIX_0426 \
+python scripts/write_kogo_downstream_notebook.py
+```
+
 ## Local Check
 
 Run this before a workshop if you changed the notebooks:
@@ -151,6 +175,22 @@ NUMBA_CACHE_DIR=/tmp/numba_spix_workshop_nb MPLCONFIGDIR=/tmp/mpl_spix_workshop_
 conda run --no-capture-output -n SPIX_0426 \
 python scripts/execute_notebook_code_cells.py \
   notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb \
+  --workdir .
+```
+
+The current downstream notebook validation uses:
+
+```bash
+CONDA_NO_PLUGINS=true \
+SPIX_WORKSHOP_N_JOBS=2 \
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 NUMEXPR_NUM_THREADS=2 \
+NUMBA_CACHE_DIR=/tmp/numba_spix_kogo_downstream MPLCONFIGDIR=/tmp/mpl_spix_kogo_downstream \
+SPIX_WORKSHOP_LECTURE_ID=kogo_downstream_validation_v3 \
+SPIX_WORKSHOP_COLAB_SAFE_MODE=1 \
+SPIX_WORKSHOP_FORCE_BAYESSPACE_LABELS=1 \
+conda run --no-capture-output -n SPIX_0426 \
+python scripts/execute_notebook_code_cells.py \
+  notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb \
   --workdir .
 ```
 

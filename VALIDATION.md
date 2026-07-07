@@ -16,6 +16,10 @@ The current workshop default is one practical notebook:
 
 `notebooks/Choi_Whisoo_SPIX_spatial_clustering_SVG_CCI_colab.ipynb`
 
+KOGO downstream lecture notebook:
+
+`notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`
+
 Lecture section order:
 
 1. SVG
@@ -139,6 +143,77 @@ Local fallback executor result, 2026-07-06:
   - BayesSpace bundled label loading: 0.01 seconds
   - SpaGCN bundled label loading: 0.01 seconds
   - LIANA bundled result loading: 0.01 seconds
+
+## KOGO Downstream Lecture Notebook
+
+Notebook:
+
+`notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb`
+
+Validation command, 2026-07-08:
+
+```bash
+CONDA_NO_PLUGINS=true \
+SPIX_WORKSHOP_N_JOBS=2 \
+OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 NUMEXPR_NUM_THREADS=2 \
+NUMBA_CACHE_DIR=/tmp/numba_spix_kogo_downstream MPLCONFIGDIR=/tmp/mpl_spix_kogo_downstream \
+SPIX_WORKSHOP_LECTURE_ID=kogo_downstream_validation_v3 \
+SPIX_WORKSHOP_COLAB_SAFE_MODE=1 \
+SPIX_WORKSHOP_FORCE_BAYESSPACE_LABELS=1 \
+conda run --no-capture-output -n SPIX_0426 \
+python scripts/execute_notebook_code_cells.py \
+  notebooks/Choi_Whisoo_KOGO_spatial_downstream_colab.ipynb \
+  --workdir .
+```
+
+Result:
+
+- Code cells: 53/53 passed.
+- Total elapsed after local dependencies and data were present: 246.92 seconds.
+- Final process peak RSS: 4.03 GB.
+- 2 um input shape: `1000000 x 2515`.
+- 8 um pseudobulk shape: `62898 x 2515`.
+- spatial domain comparison panel: `3500 x 2515`.
+- SPIX input: full native 2 um ROI, `1000000 x 2515`.
+- The local sandbox blocks `multiprocessing.Manager` sockets used by Squidpy
+  `ligrec`, so this validation was run outside the sandbox with the same
+  2-core/thread-cap settings. This is the relevant path for Colab and normal
+  local execution.
+
+Downstream additions validated in this notebook:
+
+- SVG is no longer treated as an HVG comparison endpoint. The flow is
+  Moran's I SVG detection, spatial maps, domain DEG comparison, SVG module
+  clustering, and CRC gene-program overlap.
+- Spatial domain clustering is followed by interpretation: expression-only vs
+  spatial-domain coherence, spatial-domain-specific marker candidates, and
+  program heatmaps.
+- CCI includes a tool map for Squidpy `ligrec`, LIANA, CellPhoneDB, CellChat,
+  COMMOT, and SpaTalk, while the live Colab-safe path runs Squidpy `ligrec`
+  and bundled LIANA rank-aggregate results.
+- Output tables written by the new sections:
+  - `svg_vs_domain_deg.csv`
+  - `svg_vs_domain_deg_summary.csv`
+  - `svg_module_genes.csv`
+  - `svg_module_scores_by_domain.csv`
+  - `svg_module_program_overlap.csv`
+  - `domain_spatial_coherence.csv`
+  - `spatial_domain_specific_marker_candidates.csv`
+  - `expression_domain_program_scores.csv`
+  - `spatial_domain_program_scores.csv`
+  - `cci_tool_reference.csv`
+
+Slowest stages:
+
+- SPIX multiscale segmentation: 66.91 seconds
+- 8 um preprocessing with Scanpy/Squidpy: 37.16 seconds
+- SPIX smoothing sweep: 36.17 seconds
+- SPIX equalization sweep: 30.17 seconds
+- SPIX multiscale Moran/SVG: 19.90 seconds
+- import analysis packages: 14.23 seconds
+- CCI neighborhood enrichment: 9.68 seconds
+- Squidpy `ligrec`: 1.15 seconds
+- SVG Moran's I: 0.36 seconds
 
 Pip-installed SPIX plus Colab-path stub result, 2026-07-06:
 
